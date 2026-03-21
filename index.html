@@ -733,8 +733,29 @@ function openProjectDetail(id, authorName) {
 
 function downloadProject(id, name) {
   if(!currentUser) { toast('⚠️ Login required to download','error'); return; }
-  toast(`⬇ Downloading ${name}.rar...`,'success');
-  setTimeout(()=>toast(`✅ ${name}.rar downloaded!`,'success'),1500);
+  const p = allProjects.find(pr=>pr.id===id);
+  if(!p||!p.files) { toast('No files found','error'); return; }
+  const files = p.files;
+  const fileNames = Object.keys(files);
+  if(fileNames.length===1) {
+    const blob = new Blob([files[fileNames[0]]], {type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileNames[0];
+    a.click();
+    toast(`⬇ Downloaded ${fileNames[0]}!`,'success');
+  } else {
+    fileNames.forEach((fname, i) => {
+      setTimeout(()=>{
+        const blob = new Blob([files[fname]], {type:'text/plain'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        a.click();
+      }, i*400);
+    });
+    toast(`⬇ Downloading ${fileNames.length} files!`,'success');
+  }
 }
 
 // ===================== MY PROJECTS =====================
