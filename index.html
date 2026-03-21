@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DesertStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #18181f;
+    --bg4: #1e1e28;
+    --border: #2a2a38;
+    --border2: #35354a;
+    --accent: #7c5cfc;
+    --accent2: #a07bff;
+    --accent3: #c4a6ff;
+    --green: #3ddc97;
+    --red: #ff5b5b;
+    --yellow: #ffd166;
+    --text: #e8e8f0;
+    --text2: #9898b0;
+    --text3: #5a5a70;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif; overflow-x:hidden; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg2); }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+  .view { display:none; min-height:100vh; }
+  .view.active { display:flex; }
+
+  #toast-container { position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; }
+  .toast { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:14px 18px; font-size:14px; min-width:280px; display:flex; align-items:center; gap:10px; animation:slideIn .3s ease; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+  .toast.success { border-left:3px solid var(--green); }
+  .toast.error { border-left:3px solid var(--red); }
+  .toast.info { border-left:3px solid var(--accent); }
+  @keyframes slideIn { from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)} }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(6px); z-index:1000; align-items:center; justify-content:center; }
+  .modal-overlay.active { display:flex; }
+  .modal { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:32px; width:90%; max-width:480px; position:relative; max-height:90vh; overflow-y:auto; }
+  .modal h2 { font-family:'Syne',sans-serif; font-size:22px; margin-bottom:20px; }
+  .modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:20px; }
+  .modal-close:hover { color:var(--text); }
+
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:13px; color:var(--text2); margin-bottom:6px; font-family:'DM Mono',monospace; }
+  .form-group input, .form-group select, .form-group textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; color:var(--text); font-family:'Outfit',sans-serif; font-size:14px; transition:border-color .2s; outline:none; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--accent); }
+  .form-group textarea { resize:vertical; min-height:80px; }
+
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:var(--radius-sm); border:none; cursor:pointer; font-family:'Outfit',sans-serif; font-size:14px; font-weight:500; transition:all .2s; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:var(--accent2); transform:translateY(-1px); box-shadow:0 4px 20px rgba(124,92,252,.4); }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+  .btn-secondary { background:var(--bg3); color:var(--text); border:1px solid var(--border2); }
+  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-danger { background:rgba(255,91,91,.15); color:var(--red); border:1px solid rgba(255,91,91,.3); }
+  .btn-danger:hover { background:rgba(255,91,91,.25); }
+  .btn-ghost { background:none; color:var(--text2); }
+  .btn-ghost:hover { color:var(--text); background:var(--bg3); }
+  .btn-sm { padding:7px 14px; font-size:13px; }
+
+  /* AUTH */
+  #view-auth { flex-direction:column; align-items:center; justify-content:center; position:relative; }
+  .auth-bg { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .auth-orb { position:absolute; border-radius:50%; filter:blur(80px); opacity:.25; }
+  .auth-orb-1 { width:500px; height:500px; background:var(--accent); top:-100px; left:-100px; animation:float1 8s ease-in-out infinite; }
+  .auth-orb-2 { width:400px; height:400px; background:#3ddc97; bottom:-80px; right:-80px; animation:float2 10s ease-in-out infinite; }
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,30px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,-20px)}}
+  .auth-box { position:relative; z-index:1; background:var(--bg2); border:1px solid var(--border2); border-radius:20px; padding:40px; width:90%; max-width:420px; box-shadow:0 32px 80px rgba(0,0,0,.5); }
+  .auth-logo { text-align:center; margin-bottom:32px; }
+  .auth-logo .logo-icon { width:56px; height:56px; background:linear-gradient(135deg,var(--accent),var(--accent3)); border-radius:16px; display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:12px; }
+  .auth-logo h1 { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; }
+  .auth-logo p { color:var(--text2); font-size:13px; margin-top:4px; }
+  .auth-tabs { display:flex; background:var(--bg3); border-radius:var(--radius-sm); padding:4px; margin-bottom:24px; gap:4px; }
+  .auth-tab { flex:1; text-align:center; padding:9px; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; color:var(--text2); transition:all .2s; }
+  .auth-tab.active { background:var(--accent); color:#fff; }
+  .auth-panel { display:none; }
+  .auth-panel.active { display:block; }
+  .auth-footer { text-align:center; margin-top:20px; font-size:13px; color:var(--text3); }
+  .verify-info { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:20px; font-size:13px; color:var(--text2); line-height:1.6; }
+  .verify-code-display { font-family:'DM Mono',monospace; background:var(--bg4); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:16px; text-align:center; font-size:28px; letter-spacing:8px; color:var(--accent2); margin:16px 0; }
+  .generated-password { font-family:'DM Mono',monospace; font-size:13px; color:var(--yellow); background:rgba(255,209,102,.1); border:1px solid rgba(255,209,102,.3); padding:10px; border-radius:var(--radius-sm); text-align:center; margin-top:10px; word-break:break-all; }
+
+  /* MAIN */
+  #view-main { flex-direction:column; }
+  .topbar { height:60px; background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 24px; gap:16px; position:sticky; top:0; z-index:100; }
+  .topbar-logo { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .topbar-logo .dot { width:8px; height:8px; background:var(--accent); border-radius:50%; }
+  .topbar-search { flex:1; max-width:360px; position:relative; }
+  .topbar-search input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:30px; padding:9px 16px 9px 38px; color:var(--text); font-size:14px; outline:none; transition:border-color .2s; }
+  .topbar-search input:focus { border-color:var(--accent); }
+  .topbar-search .search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text3); font-size:15px; }
+  .topbar-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .user-avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent3)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; cursor:pointer; }
+  .user-menu { position:absolute; top:calc(100%+8px); right:0; background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:8px; min-width:200px; z-index:200; display:none; box-shadow:0 16px 48px rgba(0,0,0,.5); }
+  .user-menu.open { display:block; }
+  .user-menu-item { padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:14px; display:flex; align-items:center; gap:10px; color:var(--text2); transition:all .2s; }
+  .user-menu-item:hover { background:var(--bg3); color:var(--text); }
+  .user-menu-item.danger { color:var(--red); }
+  .user-menu-item.danger:hover { background:rgba(255,91,91,.1); }
+  .user-menu-divider { border:none; border-top:1px solid var(--border); margin:6px 0; }
+  .user-menu-header { padding:10px 12px 8px; font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; }
+  .accounts-list { max-height:150px; overflow-y:auto; }
+  .account-switch-item { padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; display:flex; align-items:center; gap:8px; color:var(--text2); }
+  .account-switch-item:hover { background:var(--bg3); color:var(--text); }
+  .account-switch-item.active-account { color:var(--accent); }
+
+  .main-content { flex:1; display:flex; }
+  .sidebar { width:220px; background:var(--bg2); border-right:1px solid var(--border); padding:20px 12px; flex-shrink:0; }
+  .sidebar-section { margin-bottom:24px; }
+  .sidebar-label { font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; padding:0 10px; margin-bottom:8px; }
+  .sidebar-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; font-size:14px; color:var(--text2); transition:all .2s; margin-bottom:2px; }
+  .sidebar-item:hover { background:var(--bg3); color:var(--text); }
+  .sidebar-item.active { background:rgba(124,92,252,.15); color:var(--accent); }
+  .sidebar-item .icon { font-size:16px; width:20px; text-align:center; }
+
+  .page-content { flex:1; padding:28px; overflow-y:auto; max-height:calc(100vh - 60px); }
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .page-title { font-family:'Syne',sans-serif; font-size:26px; font-weight:700; }
+
+  .filter-tabs { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+  .filter-tab { padding:8px 18px; border-radius:30px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid var(--border2); color:var(--text2); background:none; transition:all .2s; }
+  .filter-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .filter-tab:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+
+  .projects-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:18px; }
+  .project-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; cursor:pointer; transition:all .3s; position:relative; }
+  .project-card:hover { border-color:var(--border2); transform:translateY(-3px); box-shadow:0 16px 40px rgba(0,0,0,.3),0 0 0 1px rgba(124,92,252,.15); }
+  .project-card-thumb { height:130px; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:56px; position:relative; overflow:hidden; }
+  .project-card-thumb img { width:100%; height:100%; object-fit:cover; }
+  .project-card-badge { position:absolute; top:10px; right:10px; padding:3px 8px; border-radius:30px; font-size:10px; font-weight:600; font-family:'DM Mono',monospace; text-transform:uppercase; }
+  .badge-game { background:rgba(124,92,252,.3); color:var(--accent3); border:1px solid rgba(124,92,252,.4); }
+  .badge-app { background:rgba(61,220,151,.2); color:var(--green); border:1px solid rgba(61,220,151,.3); }
+  .project-card-body { padding:14px; }
+  .project-card-name { font-weight:600; font-size:15px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .project-card-author { font-size:12px; color:var(--text3); margin-bottom:10px; }
+  .project-likes { display:flex; align-items:center; gap:12px; font-size:12px; color:var(--text3); }
+  .like-btn, .dislike-btn { display:flex; align-items:center; gap:4px; cursor:pointer; padding:3px 6px; border-radius:4px; transition:all .2s; }
+  .like-btn:hover { color:var(--green); background:rgba(61,220,151,.1); }
+  .dislike-btn:hover { color:var(--red); background:rgba(255,91,91,.1); }
+
+  .empty-state { text-align:center; padding:80px 20px; color:var(--text3); }
+  .empty-state .empty-icon { font-size:56px; margin-bottom:16px; opacity:.5; }
+  .empty-state h3 { font-size:18px; color:var(--text2); margin-bottom:8px; }
+
+  /* PROJECT DETAIL */
+  .project-detail { display:flex; gap:24px; }
+  .project-detail-icon { width:100px; height:100px; border-radius:16px; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:48px; flex-shrink:0; overflow:hidden; }
+  .project-detail-icon img { width:100%; height:100%; object-fit:cover; }
+  .project-detail-info { flex:1; }
+  .project-detail-info h2 { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; margin-bottom:4px; }
+  .project-detail-meta { font-size:13px; color:var(--text3); margin-bottom:12px; display:flex; gap:16px; flex-wrap:wrap; }
+  .project-detail-desc { font-size:14px; color:var(--text2); line-height:1.6; margin-bottom:16px; }
+  .project-detail-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .vote-btns { display:flex; gap:8px; }
+  .vote-btn { display:flex; align-items:center; gap:6px; padding:9px 16px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg3); color:var(--text2); cursor:pointer; font-size:14px; transition:all .2s; font-family:'Outfit',sans-serif; }
+  .vote-btn.like:hover, .vote-btn.liked { border-color:var(--green); color:var(--green); background:rgba(61,220,151,.1); }
+  .vote-btn.dislike:hover, .vote-btn.disliked { border-color:var(--red); color:var(--red); background:rgba(255,91,91,.1); }
+
+  /* MY PROJECTS */
+  .my-projects-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .my-project-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:18px; }
+  .my-project-header { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .my-project-icon { width:52px; height:52px; border-radius:12px; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; overflow:hidden; }
+  .my-project-icon img { width:100%; height:100%; object-fit:cover; }
+  .my-project-name { font-weight:600; font-size:16px; }
+  .my-project-status { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-family:'DM Mono',monospace; padding:3px 8px; border-radius:30px; margin-top:4px; }
+  .status-published { background:rgba(61,220,151,.15); color:var(--green); }
+  .status-pending { background:rgba(255,209,102,.15); color:var(--yellow); }
+  .status-draft { background:var(--bg3); color:var(--text3); }
+  .my-project-actions { display:flex; gap:8px; }
+
+  /* EDITOR */
+  #view-editor { flex-direction:column; }
+  .editor-topbar { height:52px; background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 20px; gap:12px; }
+  .editor-project-name { font-family:'Syne',sans-serif; font-size:16px; font-weight:600; color:var(--text); }
+  .editor-body { flex:1; display:flex; overflow:hidden; height:calc(100vh - 52px); }
+  .file-tree { width:220px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .file-tree-header { padding:14px 16px 10px; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; display:flex; align-items:center; justify-content:space-between; }
+  .file-tree-header button { background:none; border:none; color:var(--text3); cursor:pointer; font-size:18px; }
+  .file-tree-header button:hover { color:var(--accent); }
+  .file-tree-list { flex:1; overflow-y:auto; padding:4px 8px; }
+  .file-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; color:var(--text2); transition:all .2s; }
+  .file-item:hover { background:var(--bg3); color:var(--text); }
+  .file-item.active { background:rgba(124,92,252,.15); color:var(--accent); }
+  .file-item-name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .file-item-delete { background:none; border:none; color:var(--text3); cursor:pointer; font-size:14px; opacity:0; transition:opacity .2s; }
+  .file-item:hover .file-item-delete { opacity:1; }
+  .file-item-delete:hover { color:var(--red); }
+  .editor-main { flex:1; display:flex; flex-direction:column; }
+  .code-editor { flex:1; background:var(--bg); font-family:'DM Mono',monospace; font-size:14px; color:var(--text); border:none; outline:none; padding:20px; resize:none; line-height:1.7; }
+  .editor-statusbar { height:26px; background:var(--bg3); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 16px; gap:16px; font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
+
+  /* ICON PICKER */
+  .icon-picker-area { border:2px dashed var(--border); border-radius:var(--radius); padding:32px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:16px; }
+  .icon-picker-area:hover { border-color:var(--accent); background:rgba(124,92,252,.05); }
+  .icon-picker-area.has-icon { border-style:solid; border-color:var(--accent); }
+
+  /* UPLOAD */
+  .upload-summary { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px; margin-bottom:16px; }
+  .upload-summary-row { display:flex; justify-content:space-between; padding:6px 0; font-size:13px; border-bottom:1px solid var(--border); }
+  .upload-summary-row:last-child { border-bottom:none; }
+  .upload-summary-row .label { color:var(--text3); }
+  .upload-summary-row .value { color:var(--text); font-family:'DM Mono',monospace; }
+
+  /* ADMIN */
+  .admin-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+  .admin-card h3 { font-family:'Syne',sans-serif; font-size:18px; margin-bottom:16px; }
+  .pending-item { display:flex; align-items:center; gap:14px; padding:14px; background:var(--bg3); border-radius:var(--radius-sm); margin-bottom:10px; }
+  .pending-item-info { flex:1; }
+  .pending-item-name { font-weight:600; font-size:15px; margin-bottom:2px; }
+  .pending-item-meta { font-size:12px; color:var(--text3); }
+  .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; margin-bottom:24px; }
+  .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .stat-value { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; color:var(--accent); }
+  .stat-label { font-size:13px; color:var(--text3); margin-top:4px; }
+  .notif-badge { background:var(--red); color:#fff; border-radius:50%; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; margin-left:4px; }
+
+  .loading-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media(max-width:700px){
+    .sidebar{display:none}
+    .projects-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+    .project-detail{flex-direction:column}
+    .editor-body{flex-direction:column}
+    .file-tree{width:100%;height:150px}
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- AUTH -->
+<div id="view-auth" class="view active">
+  <div class="auth-bg">
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+  </div>
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="logo-icon">🏜️</div>
+      <h1>DesertStore</h1>
+      <p>The platform for Python projects & games</p>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Register</div>
+    </div>
+
+    <div class="auth-panel active" id="panel-login">
+      <div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="your_username"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-login" onclick="doLogin()">Login</button>
+      <div class="auth-footer">No account? <span style="color:var(--accent);cursor:pointer" onclick="switchAuthTab('register')">Register</span></div>
+    </div>
+
+    <div class="auth-panel" id="panel-register">
+      <div class="form-group"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Username</label><input type="text" id="reg-username" placeholder="cool_username"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-register" onclick="startRegister()">Send Verification Code</button>
+      <div class="auth-footer">Have account? <span style="color:var(--accent);cursor:pointer" onclick="switchAuthTab('login')">Login</span></div>
+    </div>
+
+    <div class="auth-panel" id="panel-verify">
+      <div class="verify-info">Code sent to <strong id="verify-email-display"></strong><br><em style="color:var(--text3);font-size:12px">(Demo: code shown below)</em></div>
+      <div class="verify-code-display" id="demo-code-display">------</div>
+      <div class="form-group"><label>Enter Code</label><input type="text" id="verify-code-input" placeholder="6-digit code" maxlength="6"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="verifyCode()">Verify & Create Account</button>
+    </div>
+
+    <div class="auth-panel" id="panel-done">
+      <p style="color:var(--text2);margin-bottom:12px;font-size:14px">✅ Account created! Save your password:</p>
+      <div class="generated-password" id="show-password"></div>
+      <p style="font-size:12px;color:var(--text3);margin:12px 0">This password won't be shown again!</p>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="switchAuthTab('login')">Go to Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="view-main" class="view">
+  <div class="topbar">
+    <div class="topbar-logo" onclick="navigateTo('store')">
+      <span>🏜️</span><span>DesertStore</span><div class="dot"></div>
+    </div>
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search projects..." id="search-input" oninput="renderStore()">
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">＋ Create Project</button>
+      <div style="position:relative" id="user-avatar-wrap">
+        <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">U</div>
+        <div class="user-menu" id="user-menu">
+          <div class="user-menu-header" id="user-menu-name">username</div>
+          <div class="user-menu-item" onclick="navigateTo('my-projects');closeUserMenu()">📁 My Projects</div>
+          <div class="user-menu-item" id="admin-menu-item" style="display:none" onclick="navigateTo('admin');closeUserMenu()">🛡️ Admin Panel <span class="notif-badge" id="admin-notif" style="display:none">0</span></div>
+          <hr class="user-menu-divider">
+          <div class="user-menu-header">Switch Account</div>
+          <div class="accounts-list" id="accounts-list"></div>
+          <div class="user-menu-item" onclick="addAnotherAccount()">＋ Add Account</div>
+          <hr class="user-menu-divider">
+          <div class="user-menu-item danger" onclick="logout()">🚪 Logout</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Browse</div>
+        <div class="sidebar-item active" id="nav-store" onclick="navigateTo('store')"><span class="icon">🏠</span> Store</div>
+        <div class="sidebar-item" id="nav-games" onclick="navigateTo('games')"><span class="icon">🎮</span> Games</div>
+        <div class="sidebar-item" id="nav-apps" onclick="navigateTo('apps')"><span class="icon">📦</span> Apps</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">My Stuff</div>
+        <div class="sidebar-item" id="nav-my-projects" onclick="navigateTo('my-projects')"><span class="icon">📁</span> My Projects</div>
+      </div>
+      <div class="sidebar-section" id="admin-sidebar-section" style="display:none">
+        <div class="sidebar-label">Admin</div>
+        <div class="sidebar-item" id="nav-admin" onclick="navigateTo('admin')"><span class="icon">🛡️</span> Admin Panel</div>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-content">
+      <div id="page-store">
+        <div class="page-header"><h1 class="page-title">All Projects</h1></div>
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+          <button class="filter-tab" onclick="setFilter('Game',this)">🎮 Games</button>
+          <button class="filter-tab" onclick="setFilter('App',this)">📦 Apps</button>
+        </div>
+        <div id="store-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
+        <div class="projects-grid" id="projects-grid" style="display:none"></div>
+        <div class="empty-state" id="store-empty" style="display:none"><div class="empty-icon">🏜️</div><h3>No projects yet</h3><p>Be the first!</p></div>
+      </div>
+
+      <div id="page-my-projects" style="display:none">
+        <div class="page-header"><h1 class="page-title">My Projects</h1><button class="btn btn-primary" onclick="openNewProjectModal()">＋ New Project</button></div>
+        <div id="my-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
+        <div class="my-projects-grid" id="my-projects-grid" style="display:none"></div>
+        <div class="empty-state" id="my-projects-empty" style="display:none"><div class="empty-icon">📁</div><h3>No projects yet</h3><p>Create your first project!</p></div>
+      </div>
+
+      <div id="page-admin" style="display:none">
+        <div class="page-header"><h1 class="page-title">🛡️ Admin Panel</h1></div>
+        <div class="stats-row" id="admin-stats"></div>
+        <div class="admin-card"><h3>⏳ Pending Review</h3><div id="pending-list"></div><div class="empty-state" id="pending-empty" style="display:none;padding:30px"><div class="empty-icon">✅</div><h3>All clear!</h3></div></div>
+        <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR -->
+<div id="view-editor" class="view">
+  <div class="editor-topbar">
+    <button class="btn btn-ghost btn-sm" onclick="exitEditor()">← Back</button>
+    <span class="editor-project-name" id="editor-project-name">Project</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="addNewFile()">＋ File</button>
+      <button class="btn btn-primary btn-sm" onclick="openUploadModal()">↑ Upload Project</button>
+    </div>
+  </div>
+  <div class="editor-body">
+    <div class="file-tree">
+      <div class="file-tree-header"><span>Files</span><button onclick="addNewFile()">＋</button></div>
+      <div class="file-tree-list" id="file-tree-list"></div>
+    </div>
+    <div class="editor-main">
+      <textarea class="code-editor" id="code-editor" placeholder="# Write your Python code here..." spellcheck="false"></textarea>
+      <div class="editor-statusbar">
+        <span id="status-file">main.py</span>
+        <span id="status-lines">Lines: 0</span>
+        <span id="status-chars">Chars: 0</span>
+        <span style="margin-left:auto;color:var(--accent)">Python 3.x</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-new-project">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-new-project')">✕</button>
+    <h2>Create New Project</h2>
+    <div class="icon-picker-area" id="icon-picker-area" onclick="document.getElementById('icon-file-input').click()">
+      <div id="icon-preview-wrap"><div style="font-size:36px;margin-bottom:8px">🖼️</div><div style="font-size:14px;color:var(--text2)">Click to upload icon</div><div style="font-size:12px;color:var(--text3);margin-top:4px">.PNG .JPG .JPEG</div></div>
+    </div>
+    <input type="file" id="icon-file-input" accept=".png,.jpg,.jpeg" style="display:none" onchange="handleIconUpload(event)">
+    <div class="form-group"><label>Project Name</label><input type="text" id="new-project-name" placeholder="My Awesome Game"></div>
+    <div class="form-group"><label>Description</label><textarea id="new-project-desc" placeholder="Describe your project..."></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-project')">Cancel</button>
+      <button class="btn btn-primary" id="btn-create-project" onclick="createProject()">Open Editor →</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-upload">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
+    <h2>📤 Upload Project</h2>
+    <div class="upload-summary" id="upload-summary"></div>
+    <div class="form-group"><label>Notes for reviewer (optional)</label><textarea id="upload-notes" placeholder="Any notes..."></textarea></div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Admin will review before publishing.</p>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-upload" onclick="doUpload()">📦 Submit for Review</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-project-detail">
+  <div class="modal" style="max-width:560px">
+    <button class="modal-close" onclick="closeModal('modal-project-detail')">✕</button>
+    <div class="project-detail" id="project-detail-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-admin-review">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('modal-admin-review')">✕</button>
+    <h2>Review Project</h2>
+    <div id="admin-review-content"></div>
+    <div class="form-group" style="margin-top:16px"><label>Category</label><select id="admin-category"><option value="Game">🎮 Game</option><option value="App">📦 App</option></select></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-danger" onclick="adminReject()">✕ Reject</button>
+      <button class="btn btn-primary" onclick="adminApprove()">✓ Approve & Publish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== SUPABASE =====================
+const SUPABASE_URL = 'https://crjesxqwvhnhykdkpbtw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_pK6AxeucMV8r_VRryynjMA_6bcRAnQA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ===================== STATE =====================
+let currentUser = null;
+let allLoggedIn = JSON.parse(localStorage.getItem('ds_accounts') || '[]');
+let storeFilter = 'all';
+let editorState = { projectId:null, files:{}, activeFile:'main.py', iconData:null, projectName:'', projectDesc:'' };
+let newIconData = null;
+let adminReviewTarget = null;
+let pendingReg = null;
+let pendingCode = null;
+let allProjects = [];
+let allUsers = [];
+
+// ===================== INIT =====================
+async function init() {
+  // Seed admin if needed
+  const { data: adminCheck } = await sb.from('users').select('id').eq('username','admindesertovik').single();
+  if (!adminCheck) {
+    await sb.from('users').insert({
+      id: 'admin_desertovik',
+      username: 'admindesertovik',
+      email: 'desertdesertovik@gmail.com',
+      password: 'DesertAdminQ567DsGo445',
+      is_admin: true,
+    });
+  }
+
+  const savedId = localStorage.getItem('ds_current');
+  if (savedId) {
+    const { data: user } = await sb.from('users').select('*').eq('id', savedId).single();
+    if (user) { currentUser = user; showMainView(); return; }
+  }
+  showView('view-auth');
+}
+
+// ===================== AUTH =====================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active',['login','register'][i]===tab));
+  ['panel-login','panel-register','panel-verify','panel-done'].forEach(p => document.getElementById(p).classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+async function startRegister() {
+  const email = document.getElementById('reg-email').value.trim();
+  const username = document.getElementById('reg-username').value.trim();
+  if (!email||!username) { toast('Fill in all fields','error'); return; }
+  if (!email.includes('@')) { toast('Invalid email','error'); return; }
+  setLoading('btn-register', true);
+  const { data: existEmail } = await sb.from('users').select('id').eq('email',email).single();
+  if (existEmail) { toast('Email already registered','error'); setLoading('btn-register',false); return; }
+  const { data: existUser } = await sb.from('users').select('id').eq('username',username).single();
+  if (existUser) { toast('Username is taken','error'); setLoading('btn-register',false); return; }
+  pendingCode = Math.floor(100000+Math.random()*900000).toString();
+  pendingReg = { email, username };
+  document.getElementById('verify-email-display').textContent = email;
+  document.getElementById('demo-code-display').textContent = pendingCode;
+  ['panel-login','panel-register','panel-verify','panel-done'].forEach(p => document.getElementById(p).classList.remove('active'));
+  document.getElementById('panel-verify').classList.add('active');
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+  setLoading('btn-register',false);
+  toast('Code generated! (Demo: shown on screen)','info');
+}
+
+async function verifyCode() {
+  const input = document.getElementById('verify-code-input').value.trim();
+  if (input !== pendingCode) { toast('Wrong code','error'); return; }
+  const password = generatePassword();
+  const id = 'u_'+Date.now();
+  const { error } = await sb.from('users').insert({ id, username:pendingReg.username, email:pendingReg.email, password, is_admin:false });
+  if (error) { toast('Error creating account','error'); return; }
+  document.getElementById('show-password').textContent = password;
+  ['panel-login','panel-register','panel-verify','panel-done'].forEach(p=>document.getElementById(p).classList.remove('active'));
+  document.getElementById('panel-done').classList.add('active');
+  toast('Account created!','success');
+}
+
+function generatePassword() {
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+  let p=''; for(let i=0;i<16;i++) p+=c[Math.floor(Math.random()*c.length)]; return p;
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  setLoading('btn-login',true);
+  const { data: user } = await sb.from('users').select('*').eq('username',username).eq('password',password).single();
+  setLoading('btn-login',false);
+  if (!user) { toast('Wrong username or password','error'); return; }
+  currentUser = user;
+  localStorage.setItem('ds_current', user.id);
+  if (!allLoggedIn.find(u=>u.id===user.id)) {
+    allLoggedIn.push({ id:user.id, username:user.username });
+    localStorage.setItem('ds_accounts', JSON.stringify(allLoggedIn));
+  }
+  showMainView();
+  toast('Welcome, '+user.username+'!','success');
+}
+
+function logout() {
+  allLoggedIn = allLoggedIn.filter(u=>u.id!==currentUser.id);
+  localStorage.setItem('ds_accounts',JSON.stringify(allLoggedIn));
+  if (allLoggedIn.length>0) {
+    switchToAccount(allLoggedIn[0].id);
+  } else {
+    currentUser = null;
+    localStorage.removeItem('ds_current');
+    showView('view-auth');
+    switchAuthTab('login');
+    toast('Logged out','info');
+  }
+  closeUserMenu();
+}
+
+async function switchToAccount(id) {
+  const { data: user } = await sb.from('users').select('*').eq('id',id).single();
+  if (!user) return;
+  currentUser = user;
+  localStorage.setItem('ds_current',user.id);
+  closeUserMenu();
+  showMainView();
+  toast('Switched to '+user.username,'info');
+}
+
+function addAnotherAccount() { closeUserMenu(); showView('view-auth'); switchAuthTab('login'); }
+
+// ===================== VIEWS =====================
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showMainView() {
+  showView('view-main');
+  document.getElementById('user-avatar-btn').textContent = currentUser.username[0].toUpperCase();
+  document.getElementById('user-menu-name').textContent = currentUser.username + (currentUser.is_admin?' 🛡️':'');
+  const adminEls = [document.getElementById('admin-menu-item'), document.getElementById('admin-sidebar-section')];
+  adminEls.forEach(el=>{ if(el) el.style.display = currentUser.is_admin?'':'none'; });
+  renderAccountsList();
+  navigateTo('store');
+}
+
+function renderAccountsList() {
+  const list = document.getElementById('accounts-list');
+  list.innerHTML = '';
+  allLoggedIn.forEach(acc => {
+    const div = document.createElement('div');
+    div.className = 'account-switch-item'+(acc.id===currentUser.id?' active-account':'');
+    div.innerHTML = `<span>${acc.id===currentUser.id?'✓':'○'}</span> ${acc.username}`;
+    div.onclick = ()=>switchToAccount(acc.id);
+    list.appendChild(div);
+  });
+}
+
+// ===================== NAVIGATION =====================
+function navigateTo(page) {
+  ['store','my-projects','admin'].forEach(p=>{
+    const el = document.getElementById('page-'+p);
+    if(el) el.style.display = p===page?'':'none';
+    const nav = document.getElementById('nav-'+p);
+    if(nav) nav.classList.toggle('active', p===page);
+  });
+  if(['store','games','apps'].includes(page)) {
+    document.getElementById('page-store').style.display='';
+    ['store','games','apps'].forEach(p=>{ const n=document.getElementById('nav-'+p); if(n) n.classList.toggle('active',p===page); });
+    if(page==='games'){storeFilter='Game';setFilterTabUI('Game');}
+    else if(page==='apps'){storeFilter='App';setFilterTabUI('App');}
+    else{storeFilter='all';setFilterTabUI('all');}
+    renderStore();
+  }
+  if(page==='my-projects') renderMyProjects();
+  if(page==='admin') renderAdmin();
+}
+
+function setFilter(val,el) {
+  storeFilter=val;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderStore();
+}
+
+function setFilterTabUI(val) {
+  document.querySelectorAll('.filter-tab').forEach(t=>{
+    t.classList.toggle('active',(val==='all'&&t.textContent.trim()==='All')||(val==='Game'&&t.textContent.includes('Games'))||(val==='App'&&t.textContent.includes('Apps')));
+  });
+}
+
+// ===================== STORE =====================
+async function renderStore() {
+  document.getElementById('store-loading').style.display='';
+  document.getElementById('projects-grid').style.display='none';
+  document.getElementById('store-empty').style.display='none';
+
+  let query = sb.from('projects').select('*').eq('status','published');
+  const { data: projects } = await query;
+  allProjects = projects || [];
+
+  // Load usernames
+  const ownerIds = [...new Set(allProjects.map(p=>p.owner_id))];
+  let usernameMap = {};
+  if(ownerIds.length>0) {
+    const { data: owners } = await sb.from('users').select('id,username').in('id',ownerIds);
+    (owners||[]).forEach(u=>usernameMap[u.id]=u.username);
+  }
+
+  let filtered = allProjects;
+  if(storeFilter!=='all') filtered=filtered.filter(p=>p.category===storeFilter);
+  const search = document.getElementById('search-input').value.toLowerCase();
+  if(search) filtered=filtered.filter(p=>p.name.toLowerCase().includes(search)||(p.description||'').toLowerCase().includes(search));
+
+  document.getElementById('store-loading').style.display='none';
+  const grid = document.getElementById('projects-grid');
+  const empty = document.getElementById('store-empty');
+
+  if(filtered.length===0) { empty.style.display=''; grid.style.display='none'; return; }
+  grid.style.display=''; empty.style.display='none';
+  grid.innerHTML='';
+
+  filtered.forEach(p=>{
+    const card = document.createElement('div');
+    card.className='project-card';
+    const iconHtml = p.icon?`<img src="${p.icon}" alt="">`:`<div>🐍</div>`;
+    const votes = p.votes||{};
+    const likes = Object.values(votes).filter(v=>v==='like').length;
+    const dislikes = Object.values(votes).filter(v=>v==='dislike').length;
+    const author = usernameMap[p.owner_id]||'unknown';
+    card.innerHTML=`
+      <div class="project-card-thumb">${iconHtml}<span class="project-card-badge badge-${(p.category||'app').toLowerCase()}">${p.category||'App'}</span></div>
+      <div class="project-card-body">
+        <div class="project-card-name">${p.name}</div>
+        <div class="project-card-author">by ${author}</div>
+        <div class="project-likes">
+          <span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span>
+          <span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span>
+        </div>
+      </div>`;
+    card.onclick=()=>openProjectDetail(p.id, author);
+    grid.appendChild(card);
+  });
+}
+
+async function voteProject(id, type) {
+  if(!currentUser) { toast('Login to vote','error'); return; }
+  const { data: p } = await sb.from('projects').select('votes').eq('id',id).single();
+  if(!p) return;
+  const votes = p.votes||{};
+  if(votes[currentUser.id]===type) delete votes[currentUser.id];
+  else votes[currentUser.id]=type;
+  await sb.from('projects').update({votes}).eq('id',id);
+  renderStore();
+}
+
+function openProjectDetail(id, authorName) {
+  const p = allProjects.find(pr=>pr.id===id);
+  if(!p) return;
+  const votes = p.votes||{};
+  const likes = Object.values(votes).filter(v=>v==='like').length;
+  const dislikes = Object.values(votes).filter(v=>v==='dislike').length;
+  const myVote = votes[currentUser?.id];
+  const iconHtml = p.icon?`<img src="${p.icon}" alt="">`:`<span>🐍</span>`;
+  const filesCount = p.files?Object.keys(p.files).length:1;
+  const totalChars = p.files?Object.values(p.files).reduce((a,c)=>a+c.length,0):0;
+  const sizeKb = (totalChars/1024).toFixed(1);
+  document.getElementById('project-detail-content').innerHTML=`
+    <div class="project-detail-icon">${iconHtml}</div>
+    <div class="project-detail-info">
+      <h2>${p.name}</h2>
+      <div class="project-detail-meta">
+        <span>👤 ${authorName||'unknown'}</span>
+        <span>📂 ${p.category||'App'}</span>
+        <span>📄 ${filesCount} file(s)</span>
+        <span>💾 ~${sizeKb} KB</span>
+        <span>📅 ${new Date(p.published_at||p.created_at).toLocaleDateString()}</span>
+      </div>
+      <div class="project-detail-desc">${p.description||'No description.'}</div>
+      <div class="project-detail-actions">
+        <div class="vote-btns">
+          <button class="vote-btn like ${myVote==='like'?'liked':''}" onclick="voteProject('${p.id}','like');closeModal('modal-project-detail')">👍 ${likes}</button>
+          <button class="vote-btn dislike ${myVote==='dislike'?'disliked':''}" onclick="voteProject('${p.id}','dislike');closeModal('modal-project-detail')">👎 ${dislikes}</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadProject('${p.id}','${p.name}')">⬇ Download .RAR</button>
+      </div>
+    </div>`;
+  openModal('modal-project-detail');
+}
+
+function downloadProject(id, name) {
+  if(!currentUser) { toast('⚠️ Login required to download','error'); return; }
+  toast(`⬇ Downloading ${name}.rar...`,'success');
+  setTimeout(()=>toast(`✅ ${name}.rar downloaded!`,'success'),1500);
+}
+
+// ===================== MY PROJECTS =====================
+async function renderMyProjects() {
+  document.getElementById('my-loading').style.display='';
+  document.getElementById('my-projects-grid').style.display='none';
+  document.getElementById('my-projects-empty').style.display='none';
+
+  const { data: projects } = await sb.from('projects').select('*').eq('owner_id',currentUser.id);
+  const myProjects = projects||[];
+
+  document.getElementById('my-loading').style.display='none';
+  const grid = document.getElementById('my-projects-grid');
+  const empty = document.getElementById('my-projects-empty');
+
+  if(myProjects.length===0) { empty.style.display=''; return; }
+  grid.style.display=''; grid.innerHTML='';
+
+  myProjects.forEach(p=>{
+    const card = document.createElement('div');
+    card.className='my-project-card';
+    const iconHtml = p.icon?`<img src="${p.icon}" alt="">`:`<span>🐍</span>`;
+    const statusClass = {published:'status-published',pending:'status-pending',draft:'status-draft'}[p.status]||'status-draft';
+    const statusLabel = {published:'● Published',pending:'⏳ Pending',draft:'○ Draft'}[p.status]||'○ Draft';
+    card.innerHTML=`
+      <div class="my-project-header">
+        <div class="my-project-icon">${iconHtml}</div>
+        <div><div class="my-project-name">${p.name}</div><span class="my-project-status ${statusClass}">${statusLabel}</span></div>
+      </div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:14px">${p.description||'No description'}</div>
+      <div class="my-project-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editProject('${p.id}')">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">🗑 Delete</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function editProject(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id',id).single();
+  if(!p) return;
+  editorState = { projectId:id, files:p.files||{'main.py':''}, activeFile:Object.keys(p.files||{'main.py':''})[0], iconData:p.icon, projectName:p.name, projectDesc:p.description||'' };
+  openEditor();
+}
+
+async function deleteProject(id) {
+  if(!confirm('Delete this project?')) return;
+  await sb.from('projects').delete().eq('id',id);
+  toast('Project deleted','info');
+  renderMyProjects();
+}
+
+// ===================== NEW PROJECT =====================
+function openNewProjectModal() {
+  if(!currentUser) { toast('Login first','error'); return; }
+  newIconData=null;
+  document.getElementById('new-project-name').value='';
+  document.getElementById('new-project-desc').value='';
+  document.getElementById('icon-preview-wrap').innerHTML=`<div style="font-size:36px;margin-bottom:8px">🖼️</div><div style="font-size:14px;color:var(--text2)">Click to upload icon</div><div style="font-size:12px;color:var(--text3);margin-top:4px">.PNG .JPG .JPEG</div>`;
+  document.getElementById('icon-picker-area').classList.remove('has-icon');
+  openModal('modal-new-project');
+}
+
+function handleIconUpload(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    newIconData=ev.target.result;
+    document.getElementById('icon-picker-area').classList.add('has-icon');
+    document.getElementById('icon-preview-wrap').innerHTML=`<div style="width:80px;height:80px;border-radius:16px;overflow:hidden;margin:0 auto 12px"><img src="${newIconData}" style="width:100%;height:100%;object-fit:cover"></div><div style="font-size:13px;color:var(--accent)">Icon set ✓</div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function createProject() {
+  const name = document.getElementById('new-project-name').value.trim();
+  const desc = document.getElementById('new-project-desc').value.trim();
+  if(!name) { toast('Enter a project name','error'); return; }
+  setLoading('btn-create-project',true);
+  const id='p_'+Date.now();
+  const files = {'main.py':'# '+name+'\nprint("Hello from '+name+'!")'};
+  const { error } = await sb.from('projects').insert({ id, name, description:desc, owner_id:currentUser.id, status:'draft', files, icon:newIconData, votes:{} });
+  setLoading('btn-create-project',false);
+  if(error) { toast('Error creating project','error'); return; }
+  closeModal('modal-new-project');
+  editorState = { projectId:id, files, activeFile:'main.py', iconData:newIconData, projectName:name, projectDesc:desc };
+  openEditor();
+}
+
+// ===================== EDITOR =====================
+function openEditor() {
+  showView('view-editor');
+  document.getElementById('editor-project-name').textContent = editorState.projectName;
+  document.getElementById('code-editor').value = editorState.files[editorState.activeFile]||'';
+  renderFileTree();
+  updateEditorStatus();
+  document.getElementById('code-editor').oninput = () => {
+    editorState.files[editorState.activeFile] = document.getElementById('code-editor').value;
+    updateEditorStatus();
+    autoSave();
+  };
+}
+
+let saveTimeout;
+function autoSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async()=>{
+    await sb.from('projects').update({files:editorState.files}).eq('id',editorState.projectId);
+  }, 1500);
+}
+
+function renderFileTree() {
+  const list = document.getElementById('file-tree-list');
+  list.innerHTML='';
+  Object.keys(editorState.files).forEach(fname=>{
+    const div=document.createElement('div');
+    div.className='file-item'+(fname===editorState.activeFile?' active':'');
+    div.innerHTML=`<span>${fname.endsWith('.py')?'🐍':'📄'}</span><span class="file-item-name">${fname}</span><button class="file-item-delete" onclick="event.stopPropagation();deleteFile('${fname}')">✕</button>`;
+    div.onclick=()=>selectFile(fname);
+    list.appendChild(div);
+  });
+}
+
+function selectFile(fname) {
+  editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;
+  editorState.activeFile=fname;
+  document.getElementById('code-editor').value=editorState.files[fname]||'';
+  renderFileTree(); updateEditorStatus();
+}
+
+function addNewFile() {
+  const name=prompt('File name:','utils.py'); if(!name) return;
+  const fname=name.endsWith('.py')?name:name+'.py';
+  if(editorState.files[fname]){toast('Already exists','error');return;}
+  editorState.files[fname]='';
+  selectFile(fname); renderFileTree(); autoSave();
+}
+
+function deleteFile(fname) {
+  if(Object.keys(editorState.files).length<=1){toast("Can't delete only file",'error');return;}
+  delete editorState.files[fname];
+  editorState.activeFile=Object.keys(editorState.files)[0];
+  document.getElementById('code-editor').value=editorState.files[editorState.activeFile];
+  renderFileTree(); autoSave();
+}
+
+function updateEditorStatus() {
+  const code=document.getElementById('code-editor').value;
+  document.getElementById('status-file').textContent=editorState.activeFile;
+  document.getElementById('status-lines').textContent='Lines: '+code.split('\n').length;
+  document.getElementById('status-chars').textContent='Chars: '+code.length;
+}
+
+async function exitEditor() {
+  editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;
+  await sb.from('projects').update({files:editorState.files}).eq('id',editorState.projectId);
+  showMainView(); navigateTo('my-projects');
+}
+
+function openUploadModal() {
+  const totalChars=Object.values(editorState.files).reduce((a,c)=>a+c.length,0);
+  const sizeKb=(totalChars/1024).toFixed(2);
+  document.getElementById('upload-summary').innerHTML=`
+    <div class="upload-summary-row"><span class="label">Project</span><span class="value">${editorState.projectName}</span></div>
+    <div class="upload-summary-row"><span class="label">Files</span><span class="value">${Object.keys(editorState.files).join(', ')}</span></div>
+    <div class="upload-summary-row"><span class="label">Est. Size</span><span class="value">~${sizeKb} KB</span></div>
+    <div class="upload-summary-row"><span class="label">Status</span><span class="value" style="color:var(--yellow)">Draft → Pending Review</span></div>`;
+  document.getElementById('upload-notes').value='';
+  openModal('modal-upload');
+}
+
+async function doUpload() {
+  setLoading('btn-upload',true);
+  editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;
+  await sb.from('projects').update({
+    status:'pending',
+    files:editorState.files,
+    icon:editorState.iconData,
+  }).eq('id',editorState.projectId);
+  setLoading('btn-upload',false);
+  closeModal('modal-upload');
+  toast('📦 Submitted for review!','success');
+  setTimeout(()=>toast('📧 Admin will review your project','info'),1500);
+}
+
+// ===================== ADMIN =====================
+async function renderAdmin() {
+  if(!currentUser?.is_admin) { navigateTo('store'); return; }
+  const { data: projects } = await sb.from('projects').select('*');
+  const { data: users } = await sb.from('users').select('*');
+  allUsers = users||[];
+  const allP = projects||[];
+
+  const published=allP.filter(p=>p.status==='published').length;
+  const pending=allP.filter(p=>p.status==='pending');
+  const totalUsers=allUsers.filter(u=>!u.is_admin).length;
+
+  document.getElementById('admin-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-value">${published}</div><div class="stat-label">Published</div></div>
+    <div class="stat-card"><div class="stat-value">${totalUsers}</div><div class="stat-label">Users</div></div>
+    <div class="stat-card"><div class="stat-value">${pending.length}</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-value">${allP.length}</div><div class="stat-label">Total Projects</div></div>`;
+
+  // Update badge
+  const badge=document.getElementById('admin-notif');
+  if(badge){badge.style.display=pending.length>0?'':'none';badge.textContent=pending.length;}
+
+  const pendingList=document.getElementById('pending-list');
+  const pendingEmpty=document.getElementById('pending-empty');
+  pendingEmpty.style.display=pending.length?'none':'';
+  pendingList.innerHTML='';
+  pending.forEach(p=>{
+    const owner=allUsers.find(u=>u.id===p.owner_id);
+    const el=document.createElement('div');
+    el.className='pending-item';
+    const iconHtml=p.icon?`<img src="${p.icon}" style="width:40px;height:40px;border-radius:10px;object-fit:cover" alt="">`:`<div style="width:40px;height:40px;border-radius:10px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:20px">🐍</div>`;
+    el.innerHTML=`${iconHtml}<div class="pending-item-info"><div class="pending-item-name">${p.name}</div><div class="pending-item-meta">by ${owner?.username||'?'} · ${Object.keys(p.files||{}).length} file(s)</div></div><div><button class="btn btn-secondary btn-sm" onclick="openAdminReview('${p.id}')">Review</button></div>`;
+    pendingList.appendChild(el);
+  });
+
+  const usersList=document.getElementById('users-list');
+  usersList.innerHTML='';
+  allUsers.filter(u=>!u.is_admin).forEach(u=>{
+    const el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;';
+    const userProjects=allP.filter(p=>p.owner_id===u.id).length;
+    el.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${u.username[0].toUpperCase()}</div><div><div style="font-weight:500">${u.username}</div><div style="font-size:12px;color:var(--text3)">${u.email} · ${userProjects} project(s)</div></div><div style="margin-left:auto;font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</div>`;
+    usersList.appendChild(el);
+  });
+}
+
+async function openAdminReview(id) {
+  adminReviewTarget=id;
+  const { data: p } = await sb.from('projects').select('*').eq('id',id).single();
+  const owner=allUsers.find(u=>u.id===p.owner_id);
+  const filesHtml=Object.entries(p.files||{}).map(([name,code])=>
+    `<div style="margin-bottom:8px"><div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:4px">${name}</div><pre style="background:var(--bg3);padding:10px;border-radius:6px;font-family:'DM Mono',monospace;font-size:12px;overflow-x:auto;max-height:120px;overflow-y:auto;color:var(--text2)">${escHtml(code.slice(0,500))}${code.length>500?'\n...(truncated)':''}</pre></div>`
+  ).join('');
+  document.getElementById('admin-review-content').innerHTML=`
+    <div style="margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</div>
+      <div style="font-size:13px;color:var(--text3)">by ${owner?.username||'?'}</div>
+      ${p.description?`<div style="font-size:13px;color:var(--text2);margin-top:8px">${p.description}</div>`:''}
+    </div>${filesHtml}`;
+  openModal('modal-admin-review');
+}
+
+async function adminApprove() {
+  await sb.from('projects').update({ status:'published', category:document.getElementById('admin-category').value, published_at:new Date().toISOString() }).eq('id',adminReviewTarget);
+  closeModal('modal-admin-review');
+  toast('✅ Project published!','success');
+  renderAdmin();
+}
+
+async function adminReject() {
+  await sb.from('projects').update({status:'draft'}).eq('id',adminReviewTarget);
+  closeModal('modal-admin-review');
+  toast('Project rejected','info');
+  renderAdmin();
+}
+
+// ===================== HELPERS =====================
+function openModal(id){document.getElementById(id).classList.add('active');}
+function closeModal(id){document.getElementById(id).classList.remove('active');}
+function toggleUserMenu(){document.getElementById('user-menu').classList.toggle('open');}
+function closeUserMenu(){document.getElementById('user-menu').classList.remove('open');}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setLoading(btnId, loading) {
+  const btn=document.getElementById(btnId); if(!btn) return;
+  btn.disabled=loading;
+  btn.innerHTML=loading?'<div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Loading...':btn.dataset.label||btn.innerHTML;
+}
+
+function toast(msg,type='info'){
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  const icons={success:'✅',error:'❌',info:'ℹ️'};
+  t.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3500);
+}
+
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
+  if(!document.getElementById('user-avatar-wrap')?.contains(e.target)) closeUserMenu();
+});
+
+// ===================== START =====================
+init();
+</script>
+</body>
+</html>
