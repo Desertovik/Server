@@ -328,6 +328,7 @@
       <div class="sidebar-section">
         <div class="sidebar-label">My Stuff</div>
         <div class="sidebar-item" id="nav-my-projects" onclick="navigateTo('my-projects')"><span class="icon">📁</span> My Projects</div>
+        <div class="sidebar-item" id="nav-notifications" onclick="navigateTo('notifications')"><span class="icon">🔔</span> Notifications <span class="notif-badge" id="notif-count" style="display:none">0</span></div>
       </div>
       <div class="sidebar-section" id="admin-sidebar-section" style="display:none">
         <div class="sidebar-label">Admin</div>
@@ -353,6 +354,16 @@
         <div id="my-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
         <div class="my-projects-grid" id="my-projects-grid" style="display:none"></div>
         <div class="empty-state" id="my-projects-empty" style="display:none"><div class="empty-icon">📁</div><h3>No projects yet</h3><p>Create your first project!</p></div>
+      </div>
+
+      <div id="page-notifications" style="display:none">
+        <div class="page-header">
+          <h1 class="page-title">🔔 Notifications</h1>
+          <button class="btn btn-secondary btn-sm" onclick="markAllRead()">✓ Mark all read</button>
+        </div>
+        <div id="notif-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
+        <div id="notif-list"></div>
+        <div class="empty-state" id="notif-empty" style="display:none"><div class="empty-icon">🔔</div><h3>No notifications</h3><p>You're all caught up!</p></div>
       </div>
 
       <div id="page-admin" style="display:none">
@@ -418,6 +429,19 @@
     <div class="form-group"><label>Notes for reviewer (optional)</label><textarea id="upload-notes" placeholder="Any notes..."></textarea></div>
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Admin will review before publishing.</p>
     <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-upload" onclick="doUpload()">📦 Submit for Review</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-delete-reason">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="closeModal('modal-delete-reason')">✕</button>
+    <h2>🗑 Delete Project</h2>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:16px">The author will receive a notification with the reason.</p>
+    <div class="form-group"><label>Reason for deletion</label><textarea id="delete-reason" placeholder="e.g. Violates platform rules, contains malware..." style="min-height:100px"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-reason')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteProject()">🗑 Delete & Notify</button>
+    </div>
   </div>
 </div>
 
@@ -584,6 +608,7 @@ function showMainView() {
   const adminEls = [document.getElementById('admin-menu-item'), document.getElementById('admin-sidebar-section')];
   adminEls.forEach(el=>{ if(el) el.style.display = currentUser.is_admin?'':'none'; });
   renderAccountsList();
+  updateNotifBadge();
   navigateTo('store');
 }
 
@@ -601,7 +626,7 @@ function renderAccountsList() {
 
 // ===================== NAVIGATION =====================
 function navigateTo(page) {
-  ['store','my-projects','admin'].forEach(p=>{
+  ['store','my-projects','admin','notifications'].forEach(p=>{
     const el = document.getElementById('page-'+p);
     if(el) el.style.display = p===page?'':'none';
     const nav = document.getElementById('nav-'+p);
@@ -617,6 +642,7 @@ function navigateTo(page) {
   }
   if(page==='my-projects') renderMyProjects();
   if(page==='admin') renderAdmin();
+  if(page==='notifications') renderNotifications();
 }
 
 function setFilter(val,el) {
@@ -1024,12 +1050,12 @@ async function renderAdmin() {
     el.style.cssText=`display:flex;align-items:center;gap:12px;padding:10px 14px;background:${u.banned?'rgba(255,91,91,.05)':'var(--bg3)'};border:1px solid ${u.banned?'rgba(255,91,91,.2)':'transparent'};border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;`;
     const userProjects=allP.filter(p=>p.owner_id===u.id).length;
     el.innerHTML=`
-      <div style="width:34px;height:34px;border-radius:50%;background:${u.banned?'rgba(255,91,91,.3)':'linear-gradient(135deg,var(--accent),var(--accent3))'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${u.username[0].toUpperCase()}</div>
+      <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${u.username[0].toUpperCase()}</div>
       <div style="flex:1">
-        <div style="font-weight:500">${u.username}${u.banned?'<span style="background:rgba(255,91,91,.15);color:var(--red);border:1px solid rgba(255,91,91,.3);border-radius:4px;font-size:11px;padding:2px 6px;margin-left:6px;font-family:DM Mono,monospace">BANNED</span>':''}</div>
+        <div style="font-weight:500">${u.username}</div>
         <div style="font-size:12px;color:var(--text3)">${u.email} · ${userProjects} project(s)</div>
       </div>
-      <button class="btn btn-sm ${u.banned?'btn-secondary':'btn-danger'}" onclick="adminToggleBan('${u.id}',${!u.banned})">${u.banned?'🔓 Unban':'🚫 Ban'}</button>`;
+      <div style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</div>`;
     usersList.appendChild(el);
   });
 }
@@ -1047,16 +1073,75 @@ async function adminChangeCategory(id, category) {
 }
 
 async function adminDeleteProject(id, name) {
-  if(!confirm(`Delete "${name}"? This cannot be undone!`)) return;
-  await sb.from('projects').delete().eq('id',id);
-  toast(`🗑 "${name}" deleted`,'info');
+  adminReviewTarget = id;
+  document.getElementById('delete-reason').value = '';
+  closeModal('modal-admin-review');
+  openModal('modal-delete-reason');
+}
+
+async function confirmDeleteProject() {
+  const reason = document.getElementById('delete-reason').value.trim();
+  if(!reason) { toast('Please enter a reason','error'); return; }
+  const { data: p } = await sb.from('projects').select('*').eq('id', adminReviewTarget).single();
+  if(!p) return;
+  await sb.from('notifications').insert({
+    id: 'n_'+Date.now(),
+    user_id: p.owner_id,
+    message: `Your project "${p.name}" was removed by admin.\n\n📋 Reason: ${reason}`,
+    read: false,
+  });
+  await sb.from('projects').delete().eq('id', adminReviewTarget);
+  closeModal('modal-delete-reason');
+  toast(`🗑 Project deleted & user notified`,'info');
   renderAdmin(); renderStore();
 }
 
-async function adminToggleBan(userId, ban) {
-  await sb.from('users').update({banned:ban}).eq('id',userId);
-  toast(ban?'🚫 User banned!':'🔓 User unbanned!', ban?'error':'success');
-  renderAdmin();
+// ===================== NOTIFICATIONS =====================
+async function renderNotifications() {
+  document.getElementById('notif-loading').style.display='';
+  document.getElementById('notif-list').style.display='none';
+  document.getElementById('notif-empty').style.display='none';
+  const { data: notifs } = await sb.from('notifications').select('*').eq('user_id', currentUser.id).order('created_at', {ascending: false});
+  const list = notifs||[];
+  document.getElementById('notif-loading').style.display='none';
+  const container = document.getElementById('notif-list');
+  const empty = document.getElementById('notif-empty');
+  if(list.length===0) { empty.style.display=''; return; }
+  container.style.display=''; container.innerHTML='';
+  list.forEach(n => {
+    const el = document.createElement('div');
+    el.style.cssText=`background:${n.read?'var(--bg2)':'var(--bg3)'};border:1px solid ${n.read?'var(--border)':'var(--accent)'};border-radius:var(--radius);padding:18px;margin-bottom:12px;cursor:pointer;transition:all .2s;`;
+    el.innerHTML=`
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:24px;flex-shrink:0">${n.read?'🔔':'🔴'}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;color:var(--text);line-height:1.6;white-space:pre-line">${n.message}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:8px">${new Date(n.created_at).toLocaleString()}</div>
+        </div>
+        ${!n.read?`<span style="background:var(--accent);color:#fff;border-radius:30px;font-size:11px;padding:3px 8px;font-family:'DM Mono',monospace">NEW</span>`:''}
+      </div>`;
+    el.onclick = () => markRead(n.id, el);
+    container.appendChild(el);
+  });
+}
+
+async function markRead(id, el) {
+  await sb.from('notifications').update({read:true}).eq('id',id);
+  el.style.background='var(--bg2)'; el.style.borderColor='var(--border)';
+  updateNotifBadge();
+}
+
+async function markAllRead() {
+  await sb.from('notifications').update({read:true}).eq('user_id', currentUser.id);
+  toast('✓ All notifications read','info');
+  renderNotifications(); updateNotifBadge();
+}
+
+async function updateNotifBadge() {
+  const { data } = await sb.from('notifications').select('id').eq('user_id', currentUser.id).eq('read', false);
+  const count = (data||[]).length;
+  const badge = document.getElementById('notif-count');
+  if(badge) { badge.style.display=count>0?'':'none'; badge.textContent=count; }
 }
 
 async function openAdminReview(id) {
