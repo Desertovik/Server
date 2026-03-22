@@ -200,6 +200,10 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
 .tag.selected{background:rgba(124,92,252,.2);border-color:var(--accent);color:var(--accent2)}
 .tag-display{display:inline-flex;align-items:center;padding:3px 8px;border-radius:30px;font-size:11px;font-weight:500;font-family:'DM Mono',monospace}
 
+/* PARTICLES */
+.particle{position:fixed;pointer-events:none;z-index:9998;user-select:none;animation:particleFall linear infinite}
+@keyframes particleFall{0%{transform:translateY(-20px) rotate(0deg);opacity:0}10%{opacity:1}90%{opacity:.7}100%{transform:translateY(110vh) rotate(360deg);opacity:0}}
+
 /* THEME ANIMATION */
 body.theme-anim{transition:background .4s ease,color .4s ease}
 body.theme-anim *{transition:background-color .3s ease,border-color .3s ease,color .3s ease !important}
@@ -574,6 +578,24 @@ body.theme-flash{animation:themeFlash .4s ease}
               <div class="settings-toggle" id="toggle-anim" onclick="toggleSetting('animation')">
                 <div class="settings-toggle-knob"></div>
               </div>
+            </div>
+          </div>
+          <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <div class="settings-item-info">
+                <div class="settings-item-name">✨ Particles</div>
+                <div class="settings-item-desc">Floating symbols flying around the screen</div>
+              </div>
+              <div class="settings-toggle-wrap">
+                <span id="particles-label" style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace">Off</span>
+                <div class="settings-toggle" id="toggle-particles" onclick="toggleSetting('particles')">
+                  <div class="settings-toggle-knob"></div>
+                </div>
+              </div>
+            </div>
+            <div id="particle-symbols-wrap" style="display:none;width:100%">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-family:'DM Mono',monospace">Choose symbol:</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px" id="particle-symbol-grid"></div>
             </div>
           </div>
         </div>
@@ -955,7 +977,7 @@ function navigateTo(page){
   if(page==='my-projects')renderMyProjects();
   else if(page==='admin'&&currentUser?.is_admin)renderAdmin();
   else if(page==='notifications')renderNotifications();
-  else if(page==='settings'){applySettings();renderThemeGrid();loadDevices();}
+  else if(page==='settings'){applySettings();renderThemeGrid();renderParticleSymbols();loadDevices();}
   else if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
   else if(page==='profile')renderProfile();
   else if(page==='leaderboard')renderLeaderboard();
@@ -2116,6 +2138,8 @@ function isOnline(lastSeen){
 
 function loadSettings(){
   applySettings();
+  // Restore particles if enabled
+  if(appSettings.particles)setTimeout(()=>startParticles(),500);
 }
 
 function saveSettings(){
@@ -2290,6 +2314,13 @@ function applySettings(){
   if(animToggle)animToggle.classList.toggle('on',!!appSettings.animation);
   if(animLabel)animLabel.textContent=appSettings.animation?'On':'Off';
   document.body.classList.toggle('theme-anim',!!appSettings.animation);
+  // Particles toggle
+  const pToggle=document.getElementById('toggle-particles');
+  const pLabel=document.getElementById('particles-label');
+  if(pToggle)pToggle.classList.toggle('on',!!appSettings.particles);
+  if(pLabel)pLabel.textContent=appSettings.particles?'On':'Off';
+  const wrap=document.getElementById('particle-symbols-wrap');
+  if(wrap)wrap.style.display=appSettings.particles?'':'none';
 }
 
 function adjustColor(hex,amount){
@@ -2342,15 +2373,68 @@ function renderProjectTags(tags){
   return tags.map(t=>`<span class="tag-display" style="background:rgba(124,92,252,.15);color:var(--accent2);border:1px solid rgba(124,92,252,.25)">${t}</span>`).join(' ');
 }
 
+// PARTICLES
+const PARTICLE_SYMBOLS=['🏜️','⭐','✨','❄️','🔥','💜','🐍','🎮','💫','🌸','🦋','💎','🎵','🌙','☀️','🍀','⚡','🎯','🏆','💻'];
+let particleInterval=null;
+
+function renderParticleSymbols(){
+  const grid=document.getElementById('particle-symbol-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  PARTICLE_SYMBOLS.forEach(sym=>{
+    const btn=document.createElement('div');
+    btn.style.cssText=`width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2px solid ${appSettings.particleSymbol===sym?'var(--accent)':'var(--border)'};background:${appSettings.particleSymbol===sym?'rgba(124,92,252,.15)':'var(--bg3)'};transition:all .2s`;
+    btn.textContent=sym;
+    btn.onclick=()=>{appSettings.particleSymbol=sym;saveSettings();renderParticleSymbols();if(appSettings.particles){stopParticles();startParticles();}toast(`${sym} particles selected!`,'info');};
+    grid.appendChild(btn);
+  });
+}
+
+function startParticles(){
+  stopParticles();
+  const sym=appSettings.particleSymbol||'✨';
+  // Create initial particles
+  for(let i=0;i<15;i++){
+    setTimeout(()=>createParticle(sym),i*300);
+  }
+  particleInterval=setInterval(()=>createParticle(sym),600);
+}
+
+function createParticle(sym){
+  const p=document.createElement('div');
+  p.className='particle';
+  p.textContent=sym;
+  const size=Math.random()*20+14;
+  const duration=Math.random()*8+6;
+  const left=Math.random()*100;
+  const delay=Math.random()*2;
+  p.style.cssText=`font-size:${size}px;left:${left}vw;top:-30px;animation-duration:${duration}s;animation-delay:-${delay}s;opacity:0`;
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),(duration+delay)*1000);
+}
+
+function stopParticles(){
+  if(particleInterval){clearInterval(particleInterval);particleInterval=null;}
+  document.querySelectorAll('.particle').forEach(p=>p.remove());
+}
+
 function toggleSetting(key){
   if(key==='tooltip')appSettings.tooltip=!appSettings.tooltip;
   if(key==='animation'){
     appSettings.animation=!appSettings.animation;
     document.body.classList.toggle('theme-anim',appSettings.animation);
   }
+  if(key==='particles'){
+    appSettings.particles=!appSettings.particles;
+    const wrap=document.getElementById('particle-symbols-wrap');
+    if(wrap)wrap.style.display=appSettings.particles?'':'none';
+    if(appSettings.particles){renderParticleSymbols();startParticles();}
+    else stopParticles();
+  }
   saveSettings();applySettings();
   if(key==='tooltip')toast(`Floating tooltip ${appSettings.tooltip?'enabled':'disabled'}`,'info');
   if(key==='animation')toast(`Theme animation ${appSettings.animation?'enabled':'disabled'}`,'info');
+  if(key==='particles')toast(`Particles ${appSettings.particles?'enabled ✨':'disabled'}`,'info');
 }
 
 function syncColorPicker(pickerId, hexId){
