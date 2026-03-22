@@ -927,11 +927,25 @@ async function renderNotifications(){
 
 async function acceptFriendRequest(frId,fromId,notifId,btn){
   btn.closest('div[style*="gap:8px"]').innerHTML='<span style="color:var(--green);font-size:13px">✅ Friend added!</span>';
-  await sb.from('friendships').update({status:'accepted'}).eq('id',frId);
+
+  // If frId is null/undefined, find the friendship by sender
+  if(!frId||frId==='null'||frId==='undefined'){
+    const {data:fr}=await sb.from('friendships').select('id').eq('sender_id',fromId).eq('receiver_id',currentUser.id).eq('status','pending').single();
+    if(fr)frId=fr.id;
+  }
+
+  if(frId){
+    const {error}=await sb.from('friendships').update({status:'accepted'}).eq('id',frId);
+    if(error)console.error('friendship update error:',error);
+  }
+
   await sb.from('notifications').update({read:true}).eq('id',notifId);
-  // Notify sender
-  const {data:sender}=await sb.from('users').select('username').eq('id',fromId).single();
-  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:fromId,message:`✅ ${currentUser.username} accepted your friend request! You can now chat 💬`,read:false});
+  await sb.from('notifications').insert({
+    id:'n_'+Date.now(),
+    user_id:fromId,
+    message:`✅ ${currentUser.username} accepted your friend request! You can now chat 💬`,
+    read:false
+  });
   toast('Friend added! 👫','success');
   updateNotifBadge();
 }
@@ -1257,9 +1271,19 @@ async function sendFriendRequest(){
     const s=existing[0].status;
     toast(s==='accepted'?'Already friends! 👫':'Request already sent! ⏳','info');return;
   }
+  // Create one ID and use it for both
   const frId='fr_'+Date.now();
+  const notifId='n_'+Date.now();
   await sb.from('friendships').insert({id:frId,sender_id:currentUser.id,receiver_id:target.id,status:'pending'});
-  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:target.id,message:`👥 ${currentUser.username} sent you a friend request!`,read:false,type:'friend_request',from_id:currentUser.id,ref_id:frId});
+  await sb.from('notifications').insert({
+    id:notifId,
+    user_id:target.id,
+    message:`👥 ${currentUser.username} sent you a friend request!`,
+    read:false,
+    type:'friend_request',
+    from_id:currentUser.id,
+    ref_id:frId
+  });
   document.getElementById('friend-search-input').value='';
   toast(`Friend request sent to ${target.username}! 📨`,'success');
 }
