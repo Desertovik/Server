@@ -676,7 +676,54 @@ body.theme-flash{animation:themeFlash .4s ease}
           </div>
         </div>
         <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
-      </div>
+        <div class="admin-card">
+          <h3>🎟️ Promo Codes</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <!-- Create promo -->
+            <div>
+              <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:12px">CREATE PROMO CODE</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div class="form-group" style="margin:0">
+                  <label>Code</label>
+                  <div style="display:flex;gap:8px">
+                    <input type="text" id="promo-code-input" placeholder="DESERT2024" style="text-transform:uppercase">
+                    <button class="btn btn-secondary btn-sm" onclick="generatePromoCode()">🎲</button>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label>Type</label>
+                  <select id="promo-type" onchange="updatePromoTypeUI()">
+                    <option value="coins">🪙 Coins</option>
+                    <option value="theme">🎨 Exclusive Theme</option>
+                    <option value="particle">✨ Exclusive Particles</option>
+                    <option value="badge">👑 Badge</option>
+                    <option value="frame">🖼️ Frame</option>
+                  </select>
+                </div>
+                <!-- Coins amount -->
+                <div id="promo-coins-wrap" class="form-group" style="margin:0">
+                  <label>Coins (max 300)</label>
+                  <input type="number" id="promo-coins" placeholder="100" min="1" max="300" value="100">
+                </div>
+                <!-- Item picker -->
+                <div id="promo-item-wrap" style="display:none" class="form-group">
+                  <label>Select Item</label>
+                  <select id="promo-item-select"></select>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label>Max Uses (max 30)</label>
+                  <input type="number" id="promo-max-uses" placeholder="10" min="1" max="30" value="10">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="createPromoCode()">✓ Create Code</button>
+              </div>
+            </div>
+            <!-- Active promos list -->
+            <div>
+              <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:12px">ACTIVE CODES</div>
+              <div id="promo-list"></div>
+            </div>
+          </div>
+        </div>
       <div id="page-settings">
         <div class="page-header"><h1 class="page-title">⚙️ Settings</h1></div>
         <div class="settings-card">
@@ -814,6 +861,13 @@ body.theme-flash{animation:themeFlash .4s ease}
               <div style="margin-top:8px">
                 <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-family:'DM Mono',monospace">ACTIVE BADGE</div>
                 <div id="profile-active-badge"><span style="color:var(--text3);font-size:12px">No badge</span></div>
+              </div>
+              <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+                <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-family:'DM Mono',monospace">🎟️ PROMO CODE</div>
+                <div style="display:flex;gap:8px">
+                  <input type="text" id="promo-activate-input" placeholder="Enter code..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-size:13px;outline:none;text-transform:uppercase">
+                  <button class="btn btn-primary btn-sm" onclick="activatePromoCode()">✓</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1245,7 +1299,7 @@ function navigateTo(page){
   if(mnavEl)mnavEl.classList.add('active');
 
   if(page==='my-projects')renderMyProjects();
-  else if(page==='admin'&&currentUser?.is_admin)renderAdmin();
+  else if(page==='admin'&&currentUser?.is_admin){renderAdmin();loadPromoCodes();}
   else if(page==='notifications')renderNotifications();
   else if(page==='settings'){
     applySettings();renderThemeGrid();renderParticleSymbols();loadDevices();
@@ -2283,7 +2337,112 @@ async function rewardLikeReceived(projectOwnerId,projectId){
   await addCoinsToUser(projectOwnerId,7,reason);
 }
 
-// GIVE/SEND COINS
+// PROMO CODES
+function generatePromoCode(){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code='DESERT';
+  for(let i=0;i<6;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('promo-code-input').value=code;
+}
+
+function updatePromoTypeUI(){
+  const type=document.getElementById('promo-type').value;
+  const coinsWrap=document.getElementById('promo-coins-wrap');
+  const itemWrap=document.getElementById('promo-item-wrap');
+  const itemSelect=document.getElementById('promo-item-select');
+  if(type==='coins'){
+    coinsWrap.style.display='';itemWrap.style.display='none';
+  } else {
+    coinsWrap.style.display='none';itemWrap.style.display='';
+    // Populate items
+    const filtered=SHOP_ITEMS.filter(i=>i.type===type);
+    itemSelect.innerHTML=filtered.map(i=>`<option value="${i.id}">${i.icon} ${i.name}</option>`).join('');
+  }
+}
+
+async function createPromoCode(){
+  const code=document.getElementById('promo-code-input').value.trim().toUpperCase();
+  const type=document.getElementById('promo-type').value;
+  const maxUses=Math.min(parseInt(document.getElementById('promo-max-uses').value)||10,30);
+  if(!code){toast('Enter a code','error');return;}
+  let coins=0,value='';
+  if(type==='coins'){
+    coins=Math.min(parseInt(document.getElementById('promo-coins').value)||100,300);
+  } else {
+    value=document.getElementById('promo-item-select').value;
+  }
+  const {error}=await sb.from('promocodes').insert({
+    id:'pc_'+Date.now(),code,type,value,coins,max_uses:maxUses,uses:0,created_by:currentUser.id
+  });
+  if(error){
+    if(error.code==='23505')toast('Code already exists!','error');
+    else toast('Error creating code','error');
+    return;
+  }
+  toast(`✅ Code "${code}" created!`,'success');
+  document.getElementById('promo-code-input').value='';
+  loadPromoCodes();
+}
+
+async function loadPromoCodes(){
+  const list=document.getElementById('promo-list');
+  if(!list)return;
+  const {data:codes}=await sb.from('promocodes').select('*').order('created_at',{ascending:false});
+  if(!codes||!codes.length){list.innerHTML='<div style="color:var(--text3);font-size:13px">No codes yet</div>';return;}
+  list.innerHTML='';
+  codes.forEach(c=>{
+    const el=document.createElement('div');
+    el.style.cssText='background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px';
+    const typeIcon={coins:'🪙',theme:'🎨',particle:'✨',badge:'👑',frame:'🖼️'}[c.type]||'🎁';
+    const desc=c.type==='coins'?`+${c.coins} coins`:c.value;
+    const expired=c.uses>=c.max_uses;
+    el.innerHTML=`
+      <div style="flex:1">
+        <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:${expired?'var(--text3)':'var(--accent)'}">${c.code}</div>
+        <div style="font-size:11px;color:var(--text3)">${typeIcon} ${desc} · ${c.uses}/${c.max_uses} uses</div>
+      </div>
+      <button class="btn btn-danger btn-sm" style="padding:4px 8px" onclick="deletePromoCode('${c.id}')">🗑</button>`;
+    list.appendChild(el);
+  });
+}
+
+async function deletePromoCode(id){
+  await sb.from('promocodes').delete().eq('id',id);
+  await sb.from('promo_uses').delete().eq('code_id',id);
+  toast('Code deleted','info');
+  loadPromoCodes();
+}
+
+async function activatePromoCode(){
+  const code=document.getElementById('promo-activate-input').value.trim().toUpperCase();
+  if(!code){toast('Enter a code','error');return;}
+  // Find code
+  const {data:promo}=await sb.from('promocodes').select('*').eq('code',code).single();
+  if(!promo){toast('❌ Invalid code','error');return;}
+  if(promo.uses>=promo.max_uses){toast('❌ Code expired (max uses reached)','error');return;}
+  // Check if already used
+  const {data:used}=await sb.from('promo_uses').select('id').eq('code_id',promo.id).eq('user_id',currentUser.id).single();
+  if(used){toast('❌ You already used this code','error');return;}
+  // Apply reward
+  await sb.from('promo_uses').insert({id:'pu_'+Date.now(),code_id:promo.id,user_id:currentUser.id});
+  await sb.from('promocodes').update({uses:promo.uses+1}).eq('id',promo.id);
+  if(promo.type==='coins'){
+    const newCoins=userCoins+promo.coins;
+    await sb.from('users').update({coins:newCoins}).eq('id',currentUser.id);
+    userCoins=newCoins;currentUser.coins=newCoins;updateCoinsDisplay();
+    toast(`🎉 Code activated! +${promo.coins} 🪙 coins!`,'success');
+  } else {
+    // Give item
+    const exists=await sb.from('purchases').select('id').eq('user_id',currentUser.id).eq('item_id',promo.value).single();
+    if(!exists.data){
+      await sb.from('purchases').insert({id:'pur_'+Date.now(),user_id:currentUser.id,item_id:promo.value});
+      userPurchases.push(promo.value);
+    }
+    const item=SHOP_ITEMS.find(i=>i.id===promo.value);
+    toast(`🎉 Code activated! Got ${item?.name||'item'}!`,'success');
+  }
+  document.getElementById('promo-activate-input').value='';
+}
 async function giveCoins(){
   const username=document.getElementById('gift-username').value.trim();
   const amount=parseInt(document.getElementById('gift-amount').value);
