@@ -194,6 +194,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 /* LIGHT THEME */
 body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border:#dddde8;--border2:#ccccdd;--text:#1a1a2e;--text2:#4a4a6a;--text3:#8888aa}
 
+/* STARS */
+.stars{display:flex;gap:4px;cursor:pointer}
+.star{font-size:22px;color:var(--border2);transition:color .15s;line-height:1}
+.star.filled,.star:hover,.star.hover{color:#ffd166}
+.star-display{display:inline-flex;gap:2px}
+.star-display .star{font-size:14px;cursor:default}
+
+/* COMMENTS */
+.comment-item{padding:12px 0;border-bottom:1px solid var(--border)}
+.comment-item:last-child{border-bottom:none}
+.comment-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.comment-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.comment-text{font-size:14px;color:var(--text);line-height:1.5}
+.comment-time{font-size:11px;color:var(--text3);margin-left:auto}
+
+/* LEADERBOARD */
+.leader-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all .2s}
+.leader-item:hover{background:var(--bg4)}
+.leader-rank{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;width:30px;text-align:center;flex-shrink:0}
+.rank-1{color:#ffd166}
+.rank-2{color:#9898b0}
+.rank-3{color:#c07d4a}
+
 /* CHAT */
 .msg-bubble{max-width:70%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.5;word-break:break-word}
 .msg-bubble.mine{background:var(--accent);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
@@ -332,6 +355,7 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
         <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">U</div>
         <div class="user-menu" id="user-menu">
           <div class="user-menu-header" id="user-menu-name">username</div>
+          <div class="user-menu-item" onclick="navigateTo('profile');closeUserMenu()">👤 My Profile</div>
           <div class="user-menu-item" onclick="navigateTo('my-projects');closeUserMenu()">📁 My Projects</div>
           <div class="user-menu-item" onclick="navigateTo('notifications');closeUserMenu()">🔔 Notifications <span class="notif-badge" id="notif-badge-menu" style="display:none">0</span></div>
           <div class="user-menu-item" onclick="navigateTo('community');closeUserMenu()">👥 Community <span class="notif-badge" id="msg-badge-menu" style="display:none">0</span></div>
@@ -353,9 +377,11 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
         <div class="sidebar-item active" id="nav-store" onclick="navigateTo('store')"><span class="icon">🏠</span> Store</div>
         <div class="sidebar-item" id="nav-games" onclick="navigateTo('games')"><span class="icon">🎮</span> Games</div>
         <div class="sidebar-item" id="nav-apps" onclick="navigateTo('apps')"><span class="icon">📦</span> Apps</div>
+        <div class="sidebar-item" id="nav-leaderboard" onclick="navigateTo('leaderboard')"><span class="icon">🏆</span> Leaderboard</div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">My Stuff</div>
+        <div class="sidebar-item" id="nav-profile" onclick="navigateTo('profile')"><span class="icon">👤</span> My Profile</div>
         <div class="sidebar-item" id="nav-my-projects" onclick="navigateTo('my-projects')"><span class="icon">📁</span> My Projects</div>
         <div class="sidebar-item" id="nav-notifications" onclick="navigateTo('notifications')"><span class="icon">🔔</span> Notifications <span class="notif-badge" id="notif-badge-sidebar" style="display:none">0</span></div>
         <div class="sidebar-item" id="nav-community" onclick="navigateTo('community')"><span class="icon">👥</span> Community <span class="notif-badge" id="msg-badge-sidebar" style="display:none">0</span></div>
@@ -496,6 +522,47 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
           </div>
         </div>
       </div>
+      <div id="page-profile">
+        <div class="page-header">
+          <h1 class="page-title">👤 My Profile</h1>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()">💾 Save</button>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+          <!-- Avatar & bio -->
+          <div>
+            <div class="settings-card">
+              <div class="settings-section-title">Avatar</div>
+              <div style="text-align:center;margin-bottom:16px">
+                <div id="profile-avatar-preview" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin:0 auto 12px;overflow:hidden;cursor:pointer" onclick="document.getElementById('avatar-upload').click()">U</div>
+                <div style="font-size:12px;color:var(--text3)">Click to change</div>
+                <input type="file" id="avatar-upload" accept=".png,.jpg,.jpeg" style="display:none" onchange="handleAvatarUpload(event)">
+              </div>
+              <div class="form-group"><label>Bio</label><textarea id="profile-bio" placeholder="Tell something about yourself..." style="min-height:80px"></textarea></div>
+            </div>
+          </div>
+          <!-- Stats & projects -->
+          <div>
+            <div class="stats-row" id="profile-stats"></div>
+            <div class="settings-card">
+              <div class="settings-section-title">📦 My Published Projects</div>
+              <div id="profile-projects-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="page-leaderboard">
+        <div class="page-header"><h1 class="page-title">🏆 Leaderboard</h1></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="settings-card">
+            <div class="settings-section-title">👑 Top Developers (by likes)</div>
+            <div id="leaderboard-devs"></div>
+          </div>
+          <div class="settings-card">
+            <div class="settings-section-title">🔥 Top Projects (by rating)</div>
+            <div id="leaderboard-projects"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -570,6 +637,8 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   <div class="modal" style="max-width:560px">
     <button class="modal-close" onclick="closeModal('modal-project-detail')">✕</button>
     <div class="project-detail" id="project-detail-content"></div>
+    <!-- Rating & Comments -->
+    <div id="project-detail-extra" style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px"></div>
   </div>
 </div>
 
@@ -706,7 +775,7 @@ function navigateTo(page){
   // Remove active class from ALL pages
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
   // Remove active from all nav items
-  ['store','my-projects','admin','notifications','settings','community'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
   });
@@ -734,6 +803,8 @@ function navigateTo(page){
   else if(page==='notifications')renderNotifications();
   else if(page==='settings')applySettings();
   else if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
+  else if(page==='profile')renderProfile();
+  else if(page==='leaderboard')renderLeaderboard();
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
@@ -790,44 +861,24 @@ async function voteProject(id,type){
   await sb.from('projects').update({votes}).eq('id',id);renderStore();
 }
 
-function openProjectDetail(id,authorName){
-  const p=allProjects.find(pr=>pr.id===id);if(!p)return;
-  const votes=p.votes||{},likes=Object.values(votes).filter(v=>v==='like').length,dislikes=Object.values(votes).filter(v=>v==='dislike').length,myVote=votes[currentUser?.id];
-  const iconHtml=p.icon?`<img src="${p.icon}" alt="">`:`<span>🐍</span>`;
-  const filesCount=p.files?Object.keys(p.files).length:1,totalChars=p.files?Object.values(p.files).reduce((a,c)=>a+c.length,0):0,sizeKb=(totalChars/1024).toFixed(1);
-  document.getElementById('project-detail-content').innerHTML=`
-    <div class="project-detail-icon">${iconHtml}</div>
-    <div class="project-detail-info"><h2>${p.name}</h2>
-      <div class="project-detail-meta"><span>👤 ${authorName||'unknown'}</span><span>📂 ${p.category||'App'}</span><span>📄 ${filesCount} file(s)</span><span>💾 ~${sizeKb} KB</span><span>📅 ${new Date(p.published_at||p.created_at).toLocaleDateString()}</span></div>
-      <div class="project-detail-desc">${p.description||'No description.'}</div>
-      <div class="project-detail-actions">
-        <div class="vote-btns">
-          <button class="vote-btn like ${myVote==='like'?'liked':''}" onclick="voteProject('${p.id}','like');closeModal('modal-project-detail')">👍 ${likes}</button>
-          <button class="vote-btn dislike ${myVote==='dislike'?'disliked':''}" onclick="voteProject('${p.id}','dislike');closeModal('modal-project-detail')">👎 ${dislikes}</button>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="downloadProject('${p.id}','${p.name}')">${Object.keys(p.files||{}).length>1?'⬇ Download .ZIP':'⬇ Download'}</button>
-      </div>
-    </div>`;
-  openModal('modal-project-detail');
-}
-
 function downloadProject(id,name){
   if(!currentUser){toast('⚠️ Login required to download','error');return;}
   const p=allProjects.find(pr=>pr.id===id);if(!p||!p.files){toast('No files found','error');return;}
+  // Count download
+  sb.from('projects').update({downloads:(p.downloads||0)+1}).eq('id',id);
+  p.downloads=(p.downloads||0)+1;
   const files=p.files,fileNames=Object.keys(files);
   if(fileNames.length===1){
     const blob=new Blob([files[fileNames[0]]],{type:'text/plain'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fileNames[0];a.click();
     toast(`⬇ Downloaded ${fileNames[0]}!`,'success');
   } else {
-    // Generate ZIP
     toast('📦 Generating ZIP...','info');
     try {
-      const zip = generateZip(files, name);
+      const zip=generateZip(files,name);
       const a=document.createElement('a');a.href=URL.createObjectURL(zip);a.download=name+'.zip';a.click();
       toast(`⬇ Downloaded ${name}.zip (${fileNames.length} files)!`,'success');
     } catch(e) {
-      // Fallback: download files one by one
       fileNames.forEach((fname,i)=>{setTimeout(()=>{const blob=new Blob([files[fname]],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();},i*400);});
       toast(`⬇ Downloading ${fileNames.length} files!`,'success');
     }
@@ -1458,8 +1509,222 @@ async function adminReject(){
   await sb.from('projects').update({status:'draft'}).eq('id',adminReviewTarget);closeModal('modal-admin-review');toast('Project rejected','info');renderAdmin();
 }
 
-// COMMUNITY
-let activeChatFriend=null;
+// PROFILE
+async function renderProfile(){
+  const {data:user}=await sb.from('users').select('*').eq('id',currentUser.id).single();
+  if(!user)return;
+  currentUser=user;
+  // Avatar
+  const av=document.getElementById('profile-avatar-preview');
+  if(av){
+    if(user.avatar)av.innerHTML=`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover">`;
+    else av.textContent=user.username[0].toUpperCase();
+  }
+  const bioEl=document.getElementById('profile-bio');
+  if(bioEl)bioEl.value=user.bio||'';
+  // Stats
+  const {data:projects}=await sb.from('projects').select('*').eq('owner_id',currentUser.id).eq('status','published');
+  const myProjects=projects||[];
+  const totalLikes=myProjects.reduce((a,p)=>a+Object.values(p.votes||{}).filter(v=>v==='like').length,0);
+  const totalDownloads=myProjects.reduce((a,p)=>a+(p.downloads||0),0);
+  const statsEl=document.getElementById('profile-stats');
+  if(statsEl)statsEl.innerHTML=`
+    <div class="stat-card"><div class="stat-value">${myProjects.length}</div><div class="stat-label">Projects</div></div>
+    <div class="stat-card"><div class="stat-value">${totalLikes}</div><div class="stat-label">Total Likes</div></div>
+    <div class="stat-card"><div class="stat-value">${totalDownloads}</div><div class="stat-label">Downloads</div></div>`;
+  const projList=document.getElementById('profile-projects-list');
+  if(projList){
+    projList.innerHTML='';
+    if(myProjects.length===0){projList.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No published projects yet</div>';return;}
+    myProjects.forEach(p=>{
+      const likes=Object.values(p.votes||{}).filter(v=>v==='like').length;
+      const el=document.createElement('div');
+      el.style.cssText='display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer';
+      const icon=p.icon?`<img src="${p.icon}" style="width:36px;height:36px;border-radius:8px;object-fit:cover">`:`<div style="width:36px;height:36px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center">🐍</div>`;
+      el.innerHTML=`${icon}<div style="flex:1"><div style="font-weight:500">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.category||'App'} · 👍 ${likes} · ⬇ ${p.downloads||0}</div></div>`;
+      projList.appendChild(el);
+    });
+  }
+}
+
+function handleAvatarUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  if(file.size>2*1024*1024){toast('Max 2MB for avatar','error');return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const av=document.getElementById('profile-avatar-preview');
+    if(av)av.innerHTML=`<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    currentUser._newAvatar=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveProfile(){
+  const bio=document.getElementById('profile-bio').value.trim();
+  const updates={bio};
+  if(currentUser._newAvatar)updates.avatar=currentUser._newAvatar;
+  await sb.from('users').update(updates).eq('id',currentUser.id);
+  // Update avatar in topbar
+  if(updates.avatar){
+    const btn=document.getElementById('user-avatar-btn');
+    if(btn)btn.innerHTML=`<img src="${updates.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  }
+  toast('✅ Profile saved!','success');
+  renderProfile();
+}
+
+// RATINGS & COMMENTS
+async function openProjectDetail(id,authorName){
+  const p=allProjects.find(pr=>pr.id===id);if(!p)return;
+  const votes=p.votes||{},likes=Object.values(votes).filter(v=>v==='like').length,dislikes=Object.values(votes).filter(v=>v==='dislike').length,myVote=votes[currentUser?.id];
+  const iconHtml=p.icon?`<img src="${p.icon}" alt="">`:`<span>🐍</span>`;
+  const filesCount=p.files?Object.keys(p.files).length:1,totalChars=p.files?Object.values(p.files).reduce((a,c)=>a+c.length,0):0,sizeKb=(totalChars/1024).toFixed(1);
+
+  // Get average rating
+  const {data:ratings}=await sb.from('ratings').select('stars').eq('project_id',id);
+  const ratingList=ratings||[];
+  const avgRating=ratingList.length?(ratingList.reduce((a,r)=>a+r.stars,0)/ratingList.length).toFixed(1):null;
+  const myRating=ratingList.find(r=>r.user_id===currentUser?.id)?.stars||0;
+
+  document.getElementById('project-detail-content').innerHTML=`
+    <div class="project-detail-icon">${iconHtml}</div>
+    <div class="project-detail-info">
+      <h2>${p.name}</h2>
+      <div class="project-detail-meta">
+        <span>👤 ${authorName||'unknown'}</span><span>📂 ${p.category||'App'}</span>
+        <span>📄 ${filesCount} file(s)</span><span>💾 ~${sizeKb} KB</span>
+        <span>⬇ ${p.downloads||0} downloads</span>
+        ${avgRating?`<span>⭐ ${avgRating} (${ratingList.length})</span>`:''}
+      </div>
+      <div class="project-detail-desc">${p.description||'No description.'}</div>
+      <div class="project-detail-actions">
+        <div class="vote-btns">
+          <button class="vote-btn like ${myVote==='like'?'liked':''}" onclick="voteProject('${p.id}','like');closeModal('modal-project-detail')">👍 ${likes}</button>
+          <button class="vote-btn dislike ${myVote==='dislike'?'disliked':''}" onclick="voteProject('${p.id}','dislike');closeModal('modal-project-detail')">👎 ${dislikes}</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadProject('${p.id}','${p.name}')">⬇ Download</button>
+      </div>
+    </div>`;
+
+  // Rating & comments section
+  const extra=document.getElementById('project-detail-extra');
+  const starsHtml=Array.from({length:5},(_,i)=>`<span class="star ${i<myRating?'filled':''}" data-star="${i+1}" onclick="rateProject('${p.id}',${i+1})">★</span>`).join('');
+
+  // Load comments
+  const {data:comments}=await sb.from('comments').select('*,user:user_id(username,avatar)').eq('project_id',id).order('created_at',{ascending:false});
+  const commentsHtml=(comments||[]).map(c=>`
+    <div class="comment-item">
+      <div class="comment-header">
+        <div class="comment-avatar">${c.user?.username?.[0]?.toUpperCase()||'?'}</div>
+        <div style="font-weight:500;font-size:13px">${c.user?.username||'?'}</div>
+        <div class="comment-time">${new Date(c.created_at).toLocaleDateString()}</div>
+      </div>
+      <div class="comment-text">${escHtml(c.content)}</div>
+    </div>`).join('');
+
+  extra.innerHTML=`
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:8px">YOUR RATING</div>
+      <div class="stars" id="stars-${p.id}">${starsHtml}</div>
+      ${avgRating?`<div style="font-size:13px;color:var(--text3);margin-top:6px">Average: ⭐ ${avgRating} from ${ratingList.length} rating(s)</div>`:'<div style="font-size:13px;color:var(--text3);margin-top:6px">No ratings yet</div>'}
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:12px">COMMENTS (${(comments||[]).length})</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="comment-input-${p.id}" placeholder="Write a comment..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;color:var(--text);font-size:14px;outline:none" onkeydown="if(event.key==='Enter')postComment('${p.id}')">
+        <button class="btn btn-primary btn-sm" onclick="postComment('${p.id}')">Post</button>
+      </div>
+      <div>${commentsHtml||'<div style="color:var(--text3);font-size:13px;padding:10px 0">No comments yet. Be first!</div>'}</div>
+    </div>`;
+
+  // Star hover effects
+  const starsEl=document.getElementById('stars-'+p.id);
+  if(starsEl){
+    starsEl.querySelectorAll('.star').forEach((star,i)=>{
+      star.onmouseover=()=>starsEl.querySelectorAll('.star').forEach((s,j)=>s.classList.toggle('hover',j<=i));
+      star.onmouseout=()=>starsEl.querySelectorAll('.star').forEach(s=>s.classList.remove('hover'));
+    });
+  }
+  openModal('modal-project-detail');
+}
+
+async function rateProject(projectId,stars){
+  if(!currentUser){toast('Login to rate','error');return;}
+  await sb.from('ratings').upsert({id:`${currentUser.id}_${projectId}`,project_id:projectId,user_id:currentUser.id,stars},{onConflict:'project_id,user_id'});
+  toast(`⭐ Rated ${stars} star${stars>1?'s':''}!`,'success');
+  // Refresh
+  const p=allProjects.find(pr=>pr.id===projectId);
+  const author=p?allProjects.find(pr=>pr.id===projectId):null;
+  openProjectDetail(projectId,'');
+}
+
+async function postComment(projectId){
+  if(!currentUser){toast('Login to comment','error');return;}
+  const input=document.getElementById('comment-input-'+projectId);
+  const content=input?.value?.trim();
+  if(!content){toast('Write something first','error');return;}
+  input.value='';
+  await sb.from('comments').insert({id:'c_'+Date.now(),project_id:projectId,user_id:currentUser.id,content});
+  openProjectDetail(projectId,'');
+}
+
+// LEADERBOARD
+async function renderLeaderboard(){
+  // Top developers by likes
+  const {data:projects}=await sb.from('projects').select('*,user:owner_id(username,avatar)').eq('status','published');
+  const allP=projects||[];
+
+  // Aggregate likes per user
+  const devLikes={};
+  allP.forEach(p=>{
+    const likes=Object.values(p.votes||{}).filter(v=>v==='like').length;
+    const uid=p.owner_id;
+    if(!devLikes[uid])devLikes[uid]={username:p.user?.username||'?',likes:0,projects:0};
+    devLikes[uid].likes+=likes;devLikes[uid].projects++;
+  });
+  const topDevs=Object.values(devLikes).sort((a,b)=>b.likes-a.likes).slice(0,10);
+
+  const devsEl=document.getElementById('leaderboard-devs');
+  if(devsEl){
+    devsEl.innerHTML='';
+    topDevs.forEach((dev,i)=>{
+      const el=document.createElement('div');el.className='leader-item';
+      const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+      el.innerHTML=`<div class="leader-rank ${rankClass}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        <div class="friend-avatar">${dev.username[0].toUpperCase()}</div>
+        <div style="flex:1"><div style="font-weight:500">${dev.username}</div><div style="font-size:12px;color:var(--text3)">${dev.projects} project(s)</div></div>
+        <div style="font-size:14px;color:var(--yellow);font-weight:600">👍 ${dev.likes}</div>`;
+      devsEl.appendChild(el);
+    });
+    if(topDevs.length===0)devsEl.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No data yet</div>';
+  }
+
+  // Top projects by avg rating
+  const {data:ratings}=await sb.from('ratings').select('*');
+  const ratingMap={};
+  (ratings||[]).forEach(r=>{
+    if(!ratingMap[r.project_id])ratingMap[r.project_id]={sum:0,count:0};
+    ratingMap[r.project_id].sum+=r.stars;ratingMap[r.project_id].count++;
+  });
+  const topProjects=allP.map(p=>({...p,avgRating:ratingMap[p.id]?(ratingMap[p.id].sum/ratingMap[p.id].count):0,ratingCount:ratingMap[p.id]?.count||0}))
+    .filter(p=>p.ratingCount>0).sort((a,b)=>b.avgRating-a.avgRating).slice(0,10);
+
+  const projEl=document.getElementById('leaderboard-projects');
+  if(projEl){
+    projEl.innerHTML='';
+    topProjects.forEach((p,i)=>{
+      const el=document.createElement('div');el.className='leader-item';
+      const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+      const icon=p.icon?`<img src="${p.icon}" style="width:36px;height:36px;border-radius:8px;object-fit:cover">`:`<div style="width:36px;height:36px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center">🐍</div>`;
+      el.innerHTML=`<div class="leader-rank ${rankClass}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+        ${icon}
+        <div style="flex:1"><div style="font-weight:500">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.ratingCount} rating(s)</div></div>
+        <div style="font-size:14px;color:var(--yellow);font-weight:600">⭐ ${p.avgRating.toFixed(1)}</div>`;
+      projEl.appendChild(el);
+    });
+    if(topProjects.length===0)projEl.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No ratings yet</div>';
+  }
+}
 let chatInterval=null;
 
 async function renderCommunity(){
