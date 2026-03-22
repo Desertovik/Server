@@ -1979,8 +1979,8 @@ async function changePassword(){
   if(newPwd===current){toast('❌ New password must be different','error');return;}
 
   // Check if password is already used by someone else
-  const {data:existing}=await sb.from('users').select('id').eq('password',newPwd).neq('id',currentUser.id).single();
-  if(existing){toast('❌ This password is already in use, choose another','error');return;}
+  const {data:existing}=await sb.from('users').select('id').eq('password',newPwd).neq('id',currentUser.id);
+  if(existing&&existing.length>0){toast('❌ This password is already in use, choose another','error');return;}
 
   await sb.from('users').update({password:newPwd}).eq('id',currentUser.id);
   currentUser.password=newPwd;
