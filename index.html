@@ -661,6 +661,20 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="stats-row" id="admin-stats"></div>
         <div class="admin-card"><h3>⏳ Pending Review</h3><div id="pending-list"></div><div class="empty-state" id="pending-empty" style="display:none;padding:30px"><div class="empty-icon">✅</div><h3>All clear!</h3></div></div>
         <div class="admin-card"><h3>📦 Published Projects</h3><div id="published-list"></div></div>
+        <div class="admin-card">
+          <h3>🪙 Give Coins</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:400px">
+            <div class="form-group" style="margin:0">
+              <label>Username</label>
+              <input type="text" id="gift-username" placeholder="Enter username...">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Amount (max 1000)</label>
+              <input type="number" id="gift-amount" placeholder="100" min="1" max="1000">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="giveCoins()">🪙 Give Coins</button>
+          </div>
+        </div>
         <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
       </div>
       <div id="page-settings">
@@ -781,7 +795,10 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div id="page-profile">
         <div class="page-header">
           <h1 class="page-title">👤 My Profile</h1>
-          <button class="btn btn-primary btn-sm" onclick="saveProfile()">💾 Save</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="openSendCoinsModal()">🪙 Send Coins</button>
+            <button class="btn btn-primary btn-sm" onclick="saveProfile()">💾 Save</button>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
           <!-- Avatar & bio -->
@@ -938,6 +955,26 @@ body.theme-flash{animation:themeFlash .4s ease}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="skipDeviceName()">Skip</button>
       <button class="btn btn-primary" onclick="saveDeviceName()">✓ Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-send-coins">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="closeModal('modal-send-coins')">✕</button>
+    <h2>🪙 Send Coins</h2>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:16px">Send coins to another user. Your balance: <span id="send-coins-balance" style="color:var(--yellow);font-weight:700">0</span> 🪙</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="send-coins-username" placeholder="Enter username...">
+    </div>
+    <div class="form-group">
+      <label>Amount (max 1000)</label>
+      <input type="number" id="send-coins-amount" placeholder="100" min="1" max="1000">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-send-coins')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendCoins()">🪙 Send</button>
     </div>
   </div>
 </div>
@@ -2241,7 +2278,53 @@ async function rewardLikeReceived(projectOwnerId,projectId){
   await addCoinsToUser(projectOwnerId,7,reason);
 }
 
-// PROFILE
+// GIVE/SEND COINS
+async function giveCoins(){
+  const username=document.getElementById('gift-username').value.trim();
+  const amount=parseInt(document.getElementById('gift-amount').value);
+  if(!username){toast('Enter a username','error');return;}
+  if(!amount||amount<1||amount>1000){toast('Amount must be 1-1000','error');return;}
+  const {data:target}=await sb.from('users').select('id,username,coins').eq('username',username).single();
+  if(!target){toast('User not found','error');return;}
+  const newCoins=(target.coins||0)+amount;
+  await sb.from('users').update({coins:newCoins}).eq('id',target.id);
+  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:target.id,message:`🪙 Admin gave you ${amount} coins!`,read:false,type:'system'});
+  // Update display if giving to self
+  if(target.id===currentUser.id){userCoins=newCoins;currentUser.coins=newCoins;updateCoinsDisplay();}
+  document.getElementById('gift-username').value='';
+  document.getElementById('gift-amount').value='';
+  toast(`✅ Gave ${amount} 🪙 to ${target.username}!`,'success');
+}
+
+function openSendCoinsModal(){
+  document.getElementById('send-coins-balance').textContent=userCoins;
+  document.getElementById('send-coins-username').value='';
+  document.getElementById('send-coins-amount').value='';
+  openModal('modal-send-coins');
+}
+
+async function sendCoins(){
+  const username=document.getElementById('send-coins-username').value.trim();
+  const amount=parseInt(document.getElementById('send-coins-amount').value);
+  if(!username){toast('Enter a username','error');return;}
+  if(!amount||amount<1||amount>1000){toast('Amount must be 1-1000','error');return;}
+  if(amount>userCoins){toast(`Not enough coins! You have ${userCoins} 🪙`,'error');return;}
+  if(username===currentUser.username){toast("Can't send to yourself 😅",'error');return;}
+  const {data:target}=await sb.from('users').select('id,username,coins').eq('username',username).single();
+  if(!target){toast('User not found','error');return;}
+  // Deduct from sender
+  userCoins-=amount;
+  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+  currentUser.coins=userCoins;
+  // Add to receiver
+  const newCoins=(target.coins||0)+amount;
+  await sb.from('users').update({coins:newCoins}).eq('id',target.id);
+  // Notify receiver
+  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:target.id,message:`🪙 ${currentUser.username} sent you ${amount} coins!`,read:false,type:'system'});
+  updateCoinsDisplay();
+  closeModal('modal-send-coins');
+  toast(`✅ Sent ${amount} 🪙 to ${target.username}!`,'success');
+}
 async function renderProfile(){
   const {data:user}=await sb.from('users').select('*').eq('id',currentUser.id).single();
   if(!user)return;
