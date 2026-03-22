@@ -646,6 +646,21 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-device-name">
+  <div class="modal" style="max-width:400px">
+    <h2>📱 Name Your Device</h2>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Give this device a name so you can recognize it later in Settings → Devices.</p>
+    <div class="form-group">
+      <label>Device Name</label>
+      <input type="text" id="device-name-input" placeholder="e.g. My Laptop, Phone, Work PC" maxlength="30">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-secondary" onclick="skipDeviceName()">Skip</button>
+      <button class="btn btn-primary" onclick="saveDeviceName()">✓ Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-upload">
   <div class="modal" style="max-width:520px">
     <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
@@ -762,7 +777,18 @@ async function doLogin(){
   currentUser=user;localStorage.setItem('ds_current',user.id);
   avatarCache[user.id]={username:user.username,avatar:user.avatar};
   if(!allLoggedIn.find(u=>u.id===user.id)){allLoggedIn.push({id:user.id,username:user.username});localStorage.setItem('ds_accounts',JSON.stringify(allLoggedIn));}
-  showMainView();toast('Welcome, '+user.username+'!','success');
+  // Show device name modal if first time on this browser
+  const hasSession=localStorage.getItem('ds_session_id');
+  if(!hasSession){
+    showMainView();
+    setTimeout(()=>{
+      document.getElementById('device-name-input').value=getDeviceInfo().split('·')[0].trim();
+      openModal('modal-device-name');
+    },500);
+  } else {
+    showMainView();
+  }
+  toast('Welcome, '+user.username+'!','success');
 }
 
 function logout(){
@@ -785,7 +811,7 @@ function showMainView(){
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
   updateAvatarBtn();
-  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();registerSession();navigateTo('store');
+  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();navigateTo('store');
 }
 
 function updateAvatarBtn(){
@@ -1967,17 +1993,28 @@ function applySettings(){
   if(ttLabel)ttLabel.textContent=appSettings.tooltip?'On':'Off';
 }
 
+function saveDeviceName(){
+  const name=document.getElementById('device-name-input').value.trim();
+  if(name)localStorage.setItem('ds_device_name',name);
+  closeModal('modal-device-name');
+  registerSession();
+}
+
+function skipDeviceName(){
+  closeModal('modal-device-name');
+  registerSession();
+}
+
 async function registerSession(){
   if(!currentUser)return;
   const sessionId='s_'+currentUser.id+'_'+Date.now();
-  const deviceInfo=getDeviceInfo();
-  // Remove old sessions for this device (same browser)
+  const customName=localStorage.getItem('ds_device_name');
+  const autoInfo=getDeviceInfo();
+  const deviceInfo=customName?`📱 ${customName} · ${autoInfo.split('·').slice(1).join('·').trim()}`:autoInfo;
   const existingId=localStorage.getItem('ds_session_id');
   if(existingId)await sb.from('sessions').delete().eq('id',existingId);
-  // Create new session
   await sb.from('sessions').insert({id:sessionId,user_id:currentUser.id,device_info:deviceInfo,last_active:new Date().toISOString()});
   localStorage.setItem('ds_session_id',sessionId);
-  // Update last_active every 5 minutes
   setInterval(async()=>{
     await sb.from('sessions').update({last_active:new Date().toISOString()}).eq('id',sessionId);
   },5*60*1000);
@@ -2039,6 +2076,12 @@ async function loadDevices(){
 async function removeDevice(sessionId){
   if(!confirm('Remove this device from your account?'))return;
   await sb.from('sessions').delete().eq('id',sessionId);
+  if(sessionId===localStorage.getItem('ds_session_id')){
+    localStorage.removeItem('ds_session_id');
+    toast('✅ Device removed — logging out','info');
+    setTimeout(()=>logout(),1000);
+    return;
+  }
   toast('✅ Device removed','success');
   loadDevices();
 }
