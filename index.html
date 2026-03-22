@@ -591,7 +591,7 @@ function showMainView(){
   document.getElementById('user-avatar-btn').textContent=currentUser.username[0].toUpperCase();
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
-  renderAccountsList();updateNotifBadge();navigateTo('store');
+  renderAccountsList();updateNotifBadge();startOnlineTracking();navigateTo('store');
 }
 
 function renderAccountsList(){
@@ -1012,11 +1012,21 @@ async function renderAdmin(){
 
   const usersList=document.getElementById('users-list');usersList.innerHTML='';
   allUsers.filter(u=>!u.is_admin).forEach(u=>{
+    const online=isOnline(u.last_seen);
     const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;';
     const up=allP.filter(p=>p.owner_id===u.id).length;
-    el.innerHTML=`<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${u.username[0].toUpperCase()}</div>
-      <div style="flex:1"><div style="font-weight:500">${u.username}</div><div style="font-size:12px;color:var(--text3)">${u.email} · ${up} project(s)</div></div>
-      <div style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</div>`;
+    el.innerHTML=`
+      <div style="position:relative">
+        <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${u.username[0].toUpperCase()}</div>
+        <div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:${online?'#3ddc97':'#5a5a70'};border:2px solid var(--bg3)"></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:500;display:flex;align-items:center;gap:8px">${u.username}
+          <span style="font-size:11px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:30px;background:${online?'rgba(61,220,151,.15)':'rgba(90,90,112,.15)'};color:${online?'var(--green)':'var(--text3)'};border:1px solid ${online?'rgba(61,220,151,.3)':'rgba(90,90,112,.3)'}">${online?'● Online':'○ Offline'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3)">${u.email} · ${up} project(s)${u.last_seen?` · Last seen: ${new Date(u.last_seen).toLocaleTimeString()}`:''}
+        </div>
+      </div>`;
     usersList.appendChild(el);
   });
 }
@@ -1108,8 +1118,26 @@ function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 function setLoading(btnId,loading){const btn=document.getElementById(btnId);if(!btn)return;btn.disabled=loading;btn.innerHTML=loading?'<div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Loading...':btn.dataset.label||btn.innerHTML;}
 function toast(msg,type='info'){const t=document.createElement('div');t.className=`toast ${type}`;const icons={success:'✅',error:'❌',info:'ℹ️'};t.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;document.getElementById('toast-container').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3500);}
 
-// SETTINGS
-const appSettings={theme:'dark',tooltip:false};
+// ONLINE TRACKING
+let onlineInterval=null;
+async function startOnlineTracking(){
+  await updateLastSeen();
+  if(onlineInterval)clearInterval(onlineInterval);
+  onlineInterval=setInterval(updateLastSeen,30000);
+  // Stop tracking when tab hidden
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){clearInterval(onlineInterval);onlineInterval=null;}
+    else{updateLastSeen();onlineInterval=setInterval(updateLastSeen,30000);}
+  });
+}
+async function updateLastSeen(){
+  if(!currentUser)return;
+  await sb.from('users').update({last_seen:new Date().toISOString()}).eq('id',currentUser.id);
+}
+function isOnline(lastSeen){
+  if(!lastSeen)return false;
+  return(Date.now()-new Date(lastSeen).getTime())<2*60*1000; // 2 minutes
+}
 
 function loadSettings(){
   const saved=localStorage.getItem('ds_settings');
