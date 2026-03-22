@@ -2057,7 +2057,10 @@ async function saveProfile(){
 
 // RATINGS & COMMENTS
 async function openProjectDetail(id,authorName){
+  // Fetch fresh data to get real download count
+  const {data:fresh}=await sb.from('projects').select('downloads,votes').eq('id',id).single();
   const p=allProjects.find(pr=>pr.id===id);if(!p)return;
+  if(fresh){p.downloads=fresh.downloads||0;p.votes=fresh.votes||{};}
   const votes=p.votes||{},likes=Object.values(votes).filter(v=>v==='like').length,dislikes=Object.values(votes).filter(v=>v==='dislike').length,myVote=votes[currentUser?.id];
   const iconHtml=p.icon?`<img src="${p.icon}" alt="">`:`<span>🐍</span>`;
   const filesCount=p.files?Object.keys(p.files).length:1,totalChars=p.files?Object.values(p.files).reduce((a,c)=>a+c.length,0):0,sizeKb=(totalChars/1024).toFixed(1);
