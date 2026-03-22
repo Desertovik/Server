@@ -85,7 +85,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 .sidebar-item:hover{background:var(--bg3);color:var(--text)}
 .sidebar-item.active{background:rgba(124,92,252,.15);color:var(--accent)}
 .sidebar-item .icon{font-size:16px;width:20px;text-align:center}
-.page-content{flex:1;padding:28px;overflow-y:auto;max-height:calc(100vh - 60px)}
+.page-content{flex:1;padding:28px;overflow-y:auto;max-height:calc(100vh - 60px);position:relative}
+.page-content>div{display:none}
+.page-content>div.page-active{display:block}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
 .page-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:700}
 .filter-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
@@ -374,13 +376,13 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
         <div class="projects-grid" id="projects-grid" style="display:none"></div>
         <div class="empty-state" id="store-empty" style="display:none"><div class="empty-icon">🏜️</div><h3>No projects yet</h3><p>Be the first!</p></div>
       </div>
-      <div id="page-my-projects" style="display:none">
+      <div id="page-my-projects">
         <div class="page-header"><h1 class="page-title">My Projects</h1><button class="btn btn-primary" onclick="openNewProjectModal()">＋ New Project</button></div>
         <div id="my-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
         <div class="my-projects-grid" id="my-projects-grid" style="display:none"></div>
         <div class="empty-state" id="my-projects-empty" style="display:none"><div class="empty-icon">📁</div><h3>No projects yet</h3><p>Create your first project!</p></div>
       </div>
-      <div id="page-notifications" style="display:none">
+      <div id="page-notifications">
         <div class="page-header">
           <h1 class="page-title">🔔 Notifications</h1>
           <button class="btn btn-secondary btn-sm" onclick="markAllRead()">✓ Mark all read</button>
@@ -389,7 +391,7 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
         <div id="notif-list"></div>
         <div class="empty-state" id="notif-empty" style="display:none"><div class="empty-icon">🔔</div><h3>No notifications</h3><p>You're all caught up!</p></div>
       </div>
-      <div id="page-community" style="display:none">
+      <div id="page-community">
         <div class="page-header"><h1 class="page-title">👥 Community</h1></div>
         <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 160px)">
           <!-- Friends list -->
@@ -427,13 +429,14 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
           </div>
         </div>
       </div>
+      <div id="page-admin">
         <div class="page-header"><h1 class="page-title">🛡️ Admin Panel</h1></div>
         <div class="stats-row" id="admin-stats"></div>
         <div class="admin-card"><h3>⏳ Pending Review</h3><div id="pending-list"></div><div class="empty-state" id="pending-empty" style="display:none;padding:30px"><div class="empty-icon">✅</div><h3>All clear!</h3></div></div>
         <div class="admin-card"><h3>📦 Published Projects</h3><div id="published-list"></div></div>
         <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
       </div>
-      <div id="page-settings" style="display:none">
+      <div id="page-settings">
         <div class="page-header"><h1 class="page-title">⚙️ Settings</h1></div>
         <div class="settings-card">
           <div class="settings-section-title">🎨 Appearance</div>
@@ -663,17 +666,16 @@ function renderAccountsList(){
 }
 
 function navigateTo(page){
-  // Hide ALL pages including store
+  // Remove active class from ALL pages
+  document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
+  // Remove active from all nav items
   ['store','my-projects','admin','notifications','settings','community'].forEach(p=>{
-    const el=document.getElementById('page-'+p);
-    if(el)el.style.display='none';
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
   });
 
-  // Show correct page
   if(page==='store'||page==='games'||page==='apps'){
-    document.getElementById('page-store').style.display='';
+    document.getElementById('page-store').classList.add('page-active');
     ['store','games','apps'].forEach(p=>{
       const n=document.getElementById('nav-'+p);
       if(n)n.classList.toggle('active',p===page);
@@ -685,9 +687,8 @@ function navigateTo(page){
     return;
   }
 
-  // For all other pages
   const pageEl=document.getElementById('page-'+page);
-  if(pageEl)pageEl.style.display='';
+  if(pageEl)pageEl.classList.add('page-active');
   const navEl=document.getElementById('nav-'+page);
   if(navEl)navEl.classList.add('active');
 
