@@ -2201,11 +2201,11 @@ async function toggleShopItem(itemId,type){
 
 // COIN SYSTEM
 async function addCoinsToUser(userId, amount, reason){
-  // Check if already rewarded
-  const {data:existing}=await sb.from('coin_transactions').select('id').eq('user_id',userId).eq('reason',reason).single();
+  // Check if this action already rewarded (by reason only - unique per action)
+  const {data:existing}=await sb.from('coin_transactions').select('id').eq('reason',reason).single();
   if(existing)return;
   const {error}=await sb.from('coin_transactions').insert({id:'ct_'+Date.now()+'_'+Math.random().toString(36).slice(2),user_id:userId,amount,reason});
-  if(error)return;
+  if(error){console.error('coin tx error:',error);return;}
   const {data:u}=await sb.from('users').select('coins').eq('id',userId).single();
   const newCoins=(u?.coins||0)+amount;
   await sb.from('users').update({coins:newCoins}).eq('id',userId);
