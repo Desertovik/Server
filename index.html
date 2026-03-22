@@ -214,11 +214,13 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   #tooltip-setting-item{display:none!important}
   .desktop-only{display:none!important}
 
-  /* Fix Community on mobile */
-  #page-community>div{display:flex!important;flex-direction:column!important;height:auto!important;gap:12px}
+  /* Fix Community on mobile - hide tabs */
+  .desktop-only{display:none!important}
   #community-friends-tab>div{display:flex!important;flex-direction:column!important;height:auto!important}
   #community-friends-tab>div>div:last-child{height:60vh;min-height:300px}
   #all-users-list{grid-template-columns:1fr 1fr!important}
+  /* On mobile page-community only shows friends tab */
+  #page-community #community-users-tab{display:none!important}
 
   /* PWA button above mobile nav */
   #pwa-install-btn{bottom:90px}
