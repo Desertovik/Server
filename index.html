@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DesertStore">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="description" content="Discover & Share Python Projects">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text y='.9em' font-size='80'>🏜️</text></svg>">
+<link rel="manifest" id="pwa-manifest">
 <title>DesertStore</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -194,7 +202,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 /* LIGHT THEME */
 body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border:#dddde8;--border2:#ccccdd;--text:#1a1a2e;--text2:#4a4a6a;--text3:#8888aa}
 
-/* MOBILE NAV BAR */
+/* PWA INSTALL BUTTON */
+#pwa-install-btn{display:none;position:fixed;bottom:80px;right:16px;z-index:999;background:var(--accent);color:#fff;border:none;border-radius:50px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(124,92,252,.5);align-items:center;gap:8px;font-family:'Outfit',sans-serif}
+#pwa-install-btn.visible{display:flex}
+
+@media(max-width:768px){
+  /* Disable tooltip on mobile */
+  #floating-tooltip{display:none!important}
+
+  /* Fix Community on mobile */
+  #page-community>div{display:flex!important;flex-direction:column!important;height:auto!important;gap:12px}
+  #page-community>div>div:first-child{display:flex;flex-direction:column;gap:10px}
+  #page-community>div>div:last-child{height:60vh;min-height:300px}
+
+  /* PWA button above mobile nav */
+  #pwa-install-btn{bottom:90px}
+}
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1000;background:var(--bg2);border-top:1px solid var(--border);padding:6px 0 max(6px,env(safe-area-inset-bottom));justify-content:space-around;align-items:center}
 .mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border-radius:10px;cursor:pointer;transition:all .2s;position:relative;min-width:52px}
 .mobile-nav-item .mn-icon{font-size:22px;line-height:1}
@@ -232,8 +255,10 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   /* Leaderboard grid */
   #page-leaderboard>div{grid-template-columns:1fr!important}
 
-  /* Community */
-  #page-community>div>div{grid-template-columns:1fr!important}
+  /* Community mobile */
+  #page-community>div{grid-template-columns:1fr!important;height:auto!important}
+  #page-community>div>div:first-child{height:auto}
+  #page-community>div>div:last-child{height:60vh}
 
   /* Settings */
   #theme-grid{grid-template-columns:repeat(3,1fr)!important}
@@ -380,6 +405,7 @@ body.theme-flash{animation:themeFlash .4s ease}
 </head>
 <body>
 <div id="toast-container"></div>
+<button id="pwa-install-btn" onclick="installPWA()">📲 Install App</button>
 <div class="floating-tooltip" id="floating-tooltip">
   <div class="floating-tooltip-name" id="ft-name"></div>
   <div class="floating-tooltip-author" id="ft-author"></div>
@@ -432,6 +458,7 @@ body.theme-flash{animation:themeFlash .4s ease}
     <div class="topbar-logo" onclick="navigateTo('store')"><span>🏜️</span><span>DesertStore</span><div class="dot"></div></div>
     <div class="topbar-search"><span class="search-icon">🔍</span><input type="text" placeholder="Search projects..." id="search-input" oninput="renderStore()"></div>
     <div class="topbar-right">
+      <button class="btn btn-secondary btn-sm" id="btn-install" style="display:none" onclick="installPWA()">📲 Install App</button>
       <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">＋ Create Project</button>
       <div style="position:relative" id="user-avatar-wrap">
         <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">U</div>
@@ -1131,7 +1158,7 @@ async function renderStore(){
       ${p.tags&&p.tags.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${renderProjectTags(p.tags.slice(0,3))}</div>`:''}
       <div class="project-likes"><span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span><span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span></div></div>`;
     card.onclick=()=>openProjectDetail(p.id,author);
-    card.onmouseenter=(e)=>showTooltip(e,p,author);
+    card.onmouseenter=(e)=>showTooltipIfDesktop(e,p,author);
     card.onmousemove=(e)=>moveTooltip(e);
     card.onmouseleave=()=>hideTooltip();
     grid.appendChild(card);
@@ -2667,6 +2694,47 @@ function hideTooltip(){
   document.getElementById('floating-tooltip').classList.remove('visible');
 }
 document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('active');if(!document.getElementById('user-avatar-wrap')?.contains(e.target))closeUserMenu();});
+
+// Disable tooltip on mobile
+function showTooltipIfDesktop(e,p,author){
+  if(window.innerWidth<=768)return;
+  showTooltip(e,p,author);
+}
+
+// PWA MANIFEST
+(function(){
+  const manifest={name:'DesertStore',short_name:'DesertStore',description:'Discover & Share Python Projects',start_url:'https://desertovik.github.io/Server/',display:'standalone',background_color:'#0a0a0f',theme_color:'#7c5cfc',orientation:'portrait-primary',icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a0a0f'/%3E%3Ctext y='.85em' font-size='150' x='20'%3E🏜️%3C/text%3E%3C/svg%3E",sizes:'192x192',type:'image/svg+xml'},{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ctext y='.85em' font-size='400' x='56'%3E🏜️%3C/text%3E%3C/svg%3E",sizes:'512x512',type:'image/svg+xml'}]};
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  document.getElementById('pwa-manifest').href=URL.createObjectURL(blob);
+})();
+
+// PWA INSTALL
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  const btn=document.getElementById('pwa-install-btn');
+  if(btn)btn.classList.add('visible');
+});
+window.addEventListener('appinstalled',()=>{
+  deferredPrompt=null;
+  const btn=document.getElementById('pwa-install-btn');
+  if(btn)btn.classList.remove('visible');
+  toast('🎉 DesertStore installed!','success');
+});
+async function installPWA(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const r=await deferredPrompt.userChoice;
+    if(r.outcome==='accepted')toast('🎉 Installing DesertStore...','success');
+    deferredPrompt=null;
+    document.getElementById('pwa-install-btn')?.classList.remove('visible');
+  } else if(/iPhone|iPad|iPod/.test(navigator.userAgent)){
+    toast('📲 Tap Share → "Add to Home Screen"','info');
+  } else {
+    toast('📲 Click the install icon in your browser address bar','info');
+  }
+}
+
 init();
 </script>
 </body>
