@@ -962,9 +962,58 @@ async function confirmDeleteProject(){
 async function openAdminReview(id){
   adminReviewTarget=id;const {data:p}=await sb.from('projects').select('*').eq('id',id).single();
   const owner=allUsers.find(u=>u.id===p.owner_id);
-  const filesHtml=Object.entries(p.files||{}).map(([name,code])=>`<div style="margin-bottom:8px"><div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:4px">${name}</div><pre style="background:var(--bg3);padding:10px;border-radius:6px;font-family:'DM Mono',monospace;font-size:12px;overflow-x:auto;max-height:120px;overflow-y:auto;color:var(--text2)">${escHtml(code.slice(0,500))}${code.length>500?'\n...(truncated)':''}</pre></div>`).join('');
-  document.getElementById('admin-review-content').innerHTML=`<div style="margin-bottom:16px"><div style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</div><div style="font-size:13px;color:var(--text3)">by ${owner?.username||'?'}</div>${p.description?`<div style="font-size:13px;color:var(--text2);margin-top:8px">${p.description}</div>`:''}</div>${filesHtml}`;
+  const filesHtml=Object.entries(p.files||{}).map(([name,code])=>{
+    const isBinary=code.startsWith('__binary__:');
+    const displayCode=isBinary?`[Binary file: ${name}]`:escHtml(code);
+    const isLong=!isBinary&&code.length>500;
+    const shortCode=isLong?escHtml(code.slice(0,500))+'...':displayCode;
+    const uid='file_'+Math.random().toString(36).slice(2);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${name}</div>
+        ${isLong?`<div style="display:flex;gap:6px">
+          <button id="btn-see-${uid}" class="btn btn-sm" style="padding:3px 10px;font-size:11px;background:rgba(124,92,252,.15);color:var(--accent);border:1px solid rgba(124,92,252,.3)" onclick="toggleCodeView('${uid}',true)">👁 See all</button>
+          <button id="btn-col-${uid}" class="btn btn-sm" style="padding:3px 10px;font-size:11px;background:var(--bg4);color:var(--text3);border:1px solid var(--border);display:none" onclick="toggleCodeView('${uid}',false)">🔼 Collapse</button>
+        </div>`:''}
+      </div>
+      <pre id="pre-${uid}" style="background:var(--bg3);padding:12px;border-radius:6px;font-family:'DM Mono',monospace;font-size:12px;overflow-x:auto;max-height:150px;overflow-y:auto;color:var(--text2);transition:max-height .3s">${shortCode}</pre>
+    </div>`;
+  }).join('');
+  document.getElementById('admin-review-content').innerHTML=`
+    <div style="margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</div>
+      <div style="font-size:13px;color:var(--text3)">by ${owner?.username||'?'}</div>
+      ${p.description?`<div style="font-size:13px;color:var(--text2);margin-top:8px">${p.description}</div>`:''}
+    </div>${filesHtml}`;
+  // Store full code for each file
+  window._reviewFiles=p.files||{};
   openModal('modal-admin-review');
+}
+
+function toggleCodeView(uid,expand){
+  const pre=document.getElementById('pre-'+uid);
+  const btnSee=document.getElementById('btn-see-'+uid);
+  const btnCol=document.getElementById('btn-col-'+uid);
+  if(!pre)return;
+  if(expand){
+    // Find which file this is
+    const allFiles=Object.entries(window._reviewFiles||{});
+    const idx=parseInt(uid.split('_')[1])||0;
+    // Get full code by matching pre index
+    const pres=document.querySelectorAll('#admin-review-content pre');
+    pres.forEach((p,i)=>{if(p.id==='pre-'+uid){
+      const fname=Object.keys(window._reviewFiles)[i];
+      const code=window._reviewFiles[fname]||'';
+      pre.textContent=code.startsWith('__binary__:')?`[Binary file: ${fname}]`:code;
+    }});
+    pre.style.maxHeight='600px';
+    if(btnSee)btnSee.style.display='none';
+    if(btnCol)btnCol.style.display='';
+  } else {
+    pre.style.maxHeight='150px';
+    if(btnSee)btnSee.style.display='';
+    if(btnCol)btnCol.style.display='none';
+  }
 }
 
 async function adminApprove(){
