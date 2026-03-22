@@ -1117,12 +1117,8 @@ async function renderNotifications(){
           <button class="btn btn-primary btn-sm" onclick="acceptFriendRequest('${n.ref_id}','${n.from_id}','${n.id}',this)">✓ Accept</button>
           <button class="btn btn-danger btn-sm" onclick="declineFriendRequest('${n.ref_id}','${n.id}',this)">✕ Decline</button>
         </div>`:''}
-        ${isLoginAlert&&!n.read?`<div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-secondary btn-sm" onclick="confirmLogin('${n.id}',this)">✓ This was me</button>
-          <button class="btn btn-danger btn-sm" onclick="notMe('${n.id}',this)">🚨 Not me!</button>
-        </div>`:''}
       </div>
-      ${!n.read&&!isFriendReq&&!isLoginAlert?`<span style="background:var(--accent);color:#fff;border-radius:30px;font-size:11px;padding:3px 8px;font-family:'DM Mono',monospace;flex-shrink:0">NEW</span>`:''}
+      ${!n.read&&!isFriendReq?`<span style="background:var(--accent);color:#fff;border-radius:30px;font-size:11px;padding:3px 8px;font-family:'DM Mono',monospace;flex-shrink:0">NEW</span>`:''}
     </div>`;
     if(!n.read&&!isFriendReq&&!isLoginAlert)el.onclick=async()=>{await sb.from('notifications').update({read:true}).eq('id',n.id);el.className='notif-item';updateNotifBadge();};
     container.appendChild(el);
