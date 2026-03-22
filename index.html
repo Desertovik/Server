@@ -948,6 +948,7 @@ async function acceptFriendRequest(frId,fromId,notifId,btn){
   });
   toast('Friend added! 👫','success');
   updateNotifBadge();
+  renderNotifications();
 }
 
 async function declineFriendRequest(frId,notifId,btn){
