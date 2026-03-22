@@ -212,6 +212,7 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
 
   /* Hide desktop-only settings on mobile */
   #tooltip-setting-item{display:none!important}
+  .desktop-only{display:none!important}
 
   /* Fix Community on mobile */
   #page-community>div{display:flex!important;flex-direction:column!important;height:auto!important;gap:12px}
@@ -523,11 +524,11 @@ body.theme-flash{animation:themeFlash .4s ease}
         <span class="mobile-nav-badge" id="notif-badge-mobile" style="display:none">0</span>
       </div>
       <div class="mobile-nav-item" id="mnav-community" onclick="navigateTo('community')">
-        <span class="mn-icon">👥</span><span class="mn-label">Community</span>
+        <span class="mn-icon">💬</span><span class="mn-label">Chat</span>
         <span class="mobile-nav-badge" id="msg-badge-mobile" style="display:none">0</span>
       </div>
-      <div class="mobile-nav-item" id="mnav-settings" onclick="navigateTo('settings')">
-        <span class="mn-icon">⚙️</span><span class="mn-label">Settings</span>
+      <div class="mobile-nav-item" id="mnav-allusers" onclick="navigateTo('allusers')">
+        <span class="mn-icon">🌍</span><span class="mn-label">Users</span>
       </div>
     </nav>
     <div class="page-content">
@@ -582,12 +583,11 @@ body.theme-flash{animation:themeFlash .4s ease}
       </div>
       <div id="page-community">
         <div class="page-header"><h1 class="page-title">👥 Community</h1></div>
-        <!-- Tabs -->
-        <div class="filter-tabs" style="margin-bottom:16px">
+        <!-- Tabs (desktop only) -->
+        <div class="filter-tabs desktop-only" style="margin-bottom:16px">
           <button class="filter-tab active" id="tab-friends" onclick="switchCommunityTab('friends')">💬 Friends & Chat</button>
           <button class="filter-tab" id="tab-users" onclick="switchCommunityTab('users')">🌍 All Users</button>
         </div>
-
         <!-- Friends & Chat tab -->
         <div id="community-friends-tab">
           <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 220px)">
@@ -622,14 +622,22 @@ body.theme-flash{animation:themeFlash .4s ease}
             </div>
           </div>
         </div>
-
-        <!-- All Users tab -->
+        <!-- All Users tab (desktop) -->
         <div id="community-users-tab" style="display:none">
           <div style="margin-bottom:14px">
             <input type="text" id="users-search" placeholder="🔍 Search by username..." oninput="filterUsersList()" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;color:var(--text);font-size:14px;outline:none">
           </div>
           <div id="all-users-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px"></div>
         </div>
+      </div>
+
+      <!-- SEPARATE ALL USERS PAGE (mobile) -->
+      <div id="page-allusers">
+        <div class="page-header"><h1 class="page-title">🌍 All Users</h1></div>
+        <div style="margin-bottom:14px">
+          <input type="text" id="users-search-mobile" placeholder="🔍 Search by username..." oninput="filterUsersListMobile()" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div id="all-users-list-mobile" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
       </div>
       <div id="page-admin">
         <div class="page-header"><h1 class="page-title">🛡️ Admin Panel</h1></div>
@@ -1124,7 +1132,7 @@ function renderAccountsList(){
 
 function navigateTo(page){
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
     const mnav=document.getElementById('mnav-'+p);
@@ -1170,6 +1178,7 @@ function navigateTo(page){
     }
   }
   else if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
+  else if(page==='allusers')renderAllUsersMobile();
   else if(page==='profile')renderProfile();
   else if(page==='leaderboard')renderLeaderboard();
 }
@@ -2237,6 +2246,52 @@ function switchCommunityTab(tab){
   }
 }
 
+async function renderAllUsersMobile(){
+  const list=document.getElementById('all-users-list-mobile');
+  if(!list)return;
+  list.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px"><div class="loading-spinner"></div></div>';
+  const {data:users}=await sb.from('users').select('id,username,avatar,bio').neq('is_admin',true).order('username');
+  allUsersCache=users||[];
+  renderUsersGridTo('all-users-list-mobile',allUsersCache);
+}
+
+function filterUsersListMobile(){
+  const q=document.getElementById('users-search-mobile')?.value.toLowerCase()||'';
+  const filtered=allUsersCache.filter(u=>u.username.toLowerCase().includes(q)&&u.id!==currentUser.id);
+  renderUsersGridTo('all-users-list-mobile',filtered);
+}
+
+async function renderUsersGridTo(containerId, users){
+  const list=document.getElementById(containerId);
+  if(!list)return;
+  list.innerHTML='';
+  if(!users.length){list.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text3)">No users found 👻</div>';return;}
+  const {data:friendships}=await sb.from('friendships').select('*').or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+  const fsMap={};
+  (friendships||[]).forEach(f=>{
+    const otherId=f.sender_id===currentUser.id?f.receiver_id:f.sender_id;
+    fsMap[otherId]=f.status;
+  });
+  users.filter(u=>u.id!==currentUser.id).forEach(u=>{
+    avatarCache[u.id]={username:u.username,avatar:u.avatar};
+    const fs=fsMap[u.id];
+    const isFriend=fs==='accepted';
+    const isPending=fs==='pending';
+    const el=document.createElement('div');
+    el.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center';
+    el.innerHTML=`
+      ${renderAvatar(u.id,44)}
+      <div style="font-weight:600;font-size:13px;word-break:break-all">${u.username}</div>
+      ${isFriend
+        ?`<button class="btn btn-primary btn-sm" style="width:100%;font-size:12px" onclick="navigateTo('community')">💬 Chat</button>`
+        :isPending
+        ?`<button class="btn btn-secondary btn-sm" style="width:100%;font-size:12px;opacity:.6" disabled>⏳ Pending</button>`
+        :`<button class="btn btn-secondary btn-sm" style="width:100%;font-size:12px" onclick="sendFriendRequestById('${u.id}','${u.username}',this)">＋ Add</button>`
+      }`;
+    list.appendChild(el);
+  });
+}
+
 async function renderAllUsers(){
   const list=document.getElementById('all-users-list');
   if(!list)return;
@@ -2253,37 +2308,7 @@ function filterUsersList(){
 }
 
 async function renderUsersGrid(users){
-  const list=document.getElementById('all-users-list');
-  if(!list)return;
-  list.innerHTML='';
-  if(!users.length){list.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text3)">No users found 👻</div>';return;}
-  const {data:friendships}=await sb.from('friendships').select('*').or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
-  const fsMap={};
-  (friendships||[]).forEach(f=>{
-    const otherId=f.sender_id===currentUser.id?f.receiver_id:f.sender_id;
-    fsMap[otherId]=f.status;
-  });
-  users.filter(u=>u.id!==currentUser.id).forEach(u=>{
-    avatarCache[u.id]={username:u.username,avatar:u.avatar};
-    const fs=fsMap[u.id];
-    const isFriend=fs==='accepted';
-    const isPending=fs==='pending';
-    const el=document.createElement('div');
-    el.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;transition:all .2s';
-    el.innerHTML=`
-      ${renderAvatar(u.id,52)}
-      <div>
-        <div style="font-weight:600;font-size:14px">${u.username}</div>
-        ${u.bio?`<div style="font-size:12px;color:var(--text3);margin-top:3px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.bio}</div>`:''}
-      </div>
-      ${isFriend
-        ?`<button class="btn btn-primary btn-sm" style="width:100%" onclick="openChatWithUser('${u.id}','${u.username}')">💬 Chat</button>`
-        :isPending
-        ?`<button class="btn btn-secondary btn-sm" style="width:100%;opacity:.6" disabled>⏳ Pending</button>`
-        :`<button class="btn btn-secondary btn-sm" style="width:100%" onclick="sendFriendRequestById('${u.id}','${u.username}',this)">＋ Add Friend</button>`
-      }`;
-    list.appendChild(el);
-  });
+  renderUsersGridTo('all-users-list',users);
 }
 
 async function sendFriendRequestById(targetId,username,btn){
