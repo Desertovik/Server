@@ -1136,19 +1136,23 @@ async function confirmLogin(notifId, btn){
 }
 
 async function notMe(notifId, btn){
-  btn.closest('div[style*="gap:8px"]').innerHTML='<span style="color:var(--yellow);font-size:13px">⚠️ Please change your password immediately!</span>';
+  btn.closest('div[style*="gap:8px"]').innerHTML='<span style="color:var(--yellow);font-size:13px">⏳ Securing your account...</span>';
+  // Generate new random password
+  const newPassword=generatePassword();
+  // Update password in DB — kicks anyone using old password
+  await sb.from('users').update({password:newPassword}).eq('id',currentUser.id);
+  currentUser.password=newPassword;
+  // Delete ALL sessions except current
+  const currentSessionId=localStorage.getItem('ds_session_id');
+  if(currentSessionId){
+    await sb.from('sessions').delete().eq('user_id',currentUser.id).neq('id',currentSessionId);
+  } else {
+    await sb.from('sessions').delete().eq('user_id',currentUser.id);
+  }
   await sb.from('notifications').update({read:true}).eq('id',notifId);
   updateNotifBadge();
-  // Navigate to settings password section
-  setTimeout(()=>{
-    closeModal('modal-project-detail');
-    navigateTo('settings');
-    toast('🚨 Change your password now!','error');
-    setTimeout(()=>{
-      const el=document.getElementById('pwd-current');
-      if(el)el.focus();
-    },500);
-  },1000);
+  btn.closest('div[style*="gap:8px"]').innerHTML=`<div style="background:rgba(255,91,91,.1);border:1px solid rgba(255,91,91,.3);border-radius:8px;padding:12px;font-size:13px;color:var(--red);line-height:1.6">🚨 Account secured!<br>Password was reset. Save your new password:<br><span style="font-family:'DM Mono',monospace;font-size:14px;color:var(--yellow);word-break:break-all">${newPassword}</span><br><span style="font-size:11px;color:var(--text3)">All other sessions were terminated.</span></div>`;
+  toast('🚨 Account secured! All other sessions terminated','error');
 }
 
 async function acceptFriendRequest(frId,fromId,notifId,btn){
