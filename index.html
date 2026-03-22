@@ -1107,8 +1107,9 @@ async function renderNotifications(){
   list.forEach(n=>{
     const el=document.createElement('div');el.className='notif-item'+(n.read?'':' unread');
     const isFriendReq=n.type==='friend_request';
+    const isLoginAlert=n.message.includes('New login to your account');
     el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="font-size:24px;flex-shrink:0">${n.read?'🔔':'🔴'}</div>
+      <div style="font-size:24px;flex-shrink:0">${isLoginAlert?'🔐':n.read?'🔔':'🔴'}</div>
       <div style="flex:1">
         <div style="font-size:14px;color:var(--text);line-height:1.6;white-space:pre-line">${n.message}</div>
         <div style="font-size:12px;color:var(--text3);margin-top:6px">${new Date(n.created_at).toLocaleString()}</div>
@@ -1116,12 +1117,38 @@ async function renderNotifications(){
           <button class="btn btn-primary btn-sm" onclick="acceptFriendRequest('${n.ref_id}','${n.from_id}','${n.id}',this)">✓ Accept</button>
           <button class="btn btn-danger btn-sm" onclick="declineFriendRequest('${n.ref_id}','${n.id}',this)">✕ Decline</button>
         </div>`:''}
+        ${isLoginAlert&&!n.read?`<div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-secondary btn-sm" onclick="confirmLogin('${n.id}',this)">✓ This was me</button>
+          <button class="btn btn-danger btn-sm" onclick="notMe('${n.id}',this)">🚨 Not me!</button>
+        </div>`:''}
       </div>
-      ${!n.read&&!isFriendReq?`<span style="background:var(--accent);color:#fff;border-radius:30px;font-size:11px;padding:3px 8px;font-family:'DM Mono',monospace;flex-shrink:0">NEW</span>`:''}
+      ${!n.read&&!isFriendReq&&!isLoginAlert?`<span style="background:var(--accent);color:#fff;border-radius:30px;font-size:11px;padding:3px 8px;font-family:'DM Mono',monospace;flex-shrink:0">NEW</span>`:''}
     </div>`;
-    if(!n.read&&!isFriendReq)el.onclick=async()=>{await sb.from('notifications').update({read:true}).eq('id',n.id);el.className='notif-item';updateNotifBadge();};
+    if(!n.read&&!isFriendReq&&!isLoginAlert)el.onclick=async()=>{await sb.from('notifications').update({read:true}).eq('id',n.id);el.className='notif-item';updateNotifBadge();};
     container.appendChild(el);
   });
+}
+
+async function confirmLogin(notifId, btn){
+  btn.closest('div[style*="gap:8px"]').innerHTML='<span style="color:var(--green);font-size:13px">✅ Confirmed</span>';
+  await sb.from('notifications').update({read:true}).eq('id',notifId);
+  updateNotifBadge();
+}
+
+async function notMe(notifId, btn){
+  btn.closest('div[style*="gap:8px"]').innerHTML='<span style="color:var(--yellow);font-size:13px">⚠️ Please change your password immediately!</span>';
+  await sb.from('notifications').update({read:true}).eq('id',notifId);
+  updateNotifBadge();
+  // Navigate to settings password section
+  setTimeout(()=>{
+    closeModal('modal-project-detail');
+    navigateTo('settings');
+    toast('🚨 Change your password now!','error');
+    setTimeout(()=>{
+      const el=document.getElementById('pwd-current');
+      if(el)el.focus();
+    },500);
+  },1000);
 }
 
 async function acceptFriendRequest(frId,fromId,notifId,btn){
@@ -2103,47 +2130,22 @@ async function loadDevices(){
   list.innerHTML='';
   sessions.forEach(s=>{
     const isThis=s.id===currentSessionId;
-    const isBanned=s.banned;
     const lastActive=new Date(s.last_active);
     const minutesAgo=Math.floor((Date.now()-lastActive.getTime())/60000);
     const timeStr=minutesAgo<1?'Active now':minutesAgo<60?`${minutesAgo}m ago`:minutesAgo<1440?`${Math.floor(minutesAgo/60)}h ago`:lastActive.toLocaleDateString();
     const el=document.createElement('div');
-    el.style.cssText=`display:flex;align-items:center;gap:12px;padding:14px;background:${isBanned?'rgba(255,91,91,.05)':isThis?'rgba(124,92,252,.1)':'var(--bg3)'};border:1px solid ${isBanned?'rgba(255,91,91,.3)':isThis?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);margin-bottom:8px`;
+    el.style.cssText=`display:flex;align-items:center;gap:12px;padding:14px;background:${isThis?'rgba(124,92,252,.1)':'var(--bg3)'};border:1px solid ${isThis?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);margin-bottom:8px`;
     el.innerHTML=`
       <div style="font-size:28px;flex-shrink:0">${s.device_info?.split('·')[0]?.trim()||'💻'}</div>
       <div style="flex:1">
         <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          ${s.device_info?.split('·').slice(1).join('·')||'Unknown device'}
+          ${s.device_info?.split('·').slice(1).join('·').trim()||'Unknown device'}
           ${isThis?'<span style="background:rgba(61,220,151,.15);color:var(--green);border:1px solid rgba(61,220,151,.3);border-radius:30px;font-size:11px;padding:2px 8px;font-family:DM Mono,monospace">This device</span>':''}
-          ${isBanned?'<span style="background:rgba(255,91,91,.15);color:var(--red);border:1px solid rgba(255,91,91,.3);border-radius:30px;font-size:11px;padding:2px 8px;font-family:DM Mono,monospace">🚫 Banned</span>':''}
         </div>
         <div style="font-size:12px;color:var(--text3);margin-top:3px">Last active: ${timeStr} · Added ${new Date(s.created_at).toLocaleDateString()}</div>
-      </div>
-      ${!isThis?`<div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-sm" style="background:${isBanned?'rgba(61,220,151,.15)':'rgba(255,91,91,.15)'};color:${isBanned?'var(--green)':'var(--red)'};border:1px solid ${isBanned?'rgba(61,220,151,.3)':'rgba(255,91,91,.3)'}" onclick="toggleBanDevice('${s.id}',${!isBanned})">${isBanned?'🔓 Unban':'🚫 Ban'}</button>
-        <button class="btn btn-danger btn-sm" onclick="removeDevice('${s.id}')">🗑</button>
-      </div>`:''}`;
+      </div>`;
     list.appendChild(el);
   });
-}
-
-async function toggleBanDevice(sessionId, ban){
-  await sb.from('sessions').update({banned:ban}).eq('id',sessionId);
-  toast(ban?'🚫 Device banned! They will be kicked in ~30 seconds':'🔓 Device unbanned!', ban?'error':'success');
-  loadDevices();
-}
-
-async function removeDevice(sessionId){
-  if(!confirm('Remove this device from your account?'))return;
-  await sb.from('sessions').delete().eq('id',sessionId);
-  if(sessionId===localStorage.getItem('ds_session_id')){
-    localStorage.removeItem('ds_session_id');
-    toast('✅ Device removed — logging out','info');
-    setTimeout(()=>logout(),1000);
-    return;
-  }
-  toast('✅ Device removed','success');
-  loadDevices();
 }
 
 function toggleSetting(key){
