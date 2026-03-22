@@ -222,8 +222,35 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
 .file-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .file-item-delete{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;opacity:0;transition:opacity .2s}
 .file-item:hover .file-item-delete{opacity:1}.file-item-delete:hover{color:var(--red)}
-.editor-main{flex:1;display:flex;flex-direction:column}
-.code-editor{flex:1;background:var(--bg);font-family:'DM Mono',monospace;font-size:14px;color:var(--text);border:none;outline:none;padding:20px;resize:none;line-height:1.7}
+.editor-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.code-editor-wrap{flex:1;display:flex;position:relative;overflow:hidden;background:var(--bg)}
+.line-numbers{width:48px;background:#0d0d14;border-right:1px solid var(--border);padding:20px 0;text-align:right;font-family:'DM Mono',monospace;font-size:14px;line-height:1.7;color:var(--text3);user-select:none;overflow:hidden;flex-shrink:0}
+.line-numbers span{display:block;padding-right:10px;min-height:23.8px}
+.line-numbers span.active-line{color:var(--accent2)}
+.code-highlight{position:absolute;left:49px;top:0;right:0;bottom:0;padding:20px 20px 20px 16px;font-family:'DM Mono',monospace;font-size:14px;line-height:1.7;white-space:pre;overflow:hidden;pointer-events:none;word-wrap:normal;color:transparent}
+.code-editor{position:absolute;left:49px;top:0;right:0;bottom:0;padding:20px 20px 20px 16px;font-family:'DM Mono',monospace;font-size:14px;line-height:1.7;background:transparent;color:var(--text);border:none;outline:none;resize:none;white-space:pre;overflow-wrap:normal;overflow-x:auto;caret-color:var(--accent2);z-index:2}
+.code-editor::selection{background:rgba(124,92,252,.3)}
+
+/* Syntax highlighting colors */
+.tok-keyword{color:#c792ea;font-weight:600}
+.tok-builtin{color:#82aaff}
+.tok-string{color:#c3e88d}
+.tok-comment{color:#546e7a;font-style:italic}
+.tok-number{color:#f78c6c}
+.tok-function{color:#82aaff}
+.tok-decorator{color:#ffd166}
+.tok-operator{color:#89ddff}
+.tok-bool{color:#ff5b5b}
+.tok-class{color:#ffcb6b}
+
+/* Autocomplete */
+.autocomplete-dropdown{position:absolute;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);z-index:100;min-width:200px;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;max-height:200px;overflow-y:auto}
+.autocomplete-item{padding:8px 14px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--text2)}
+.autocomplete-item:hover,.autocomplete-item.selected{background:rgba(124,92,252,.2);color:var(--text)}
+.autocomplete-item .ac-type{font-size:10px;padding:2px 5px;border-radius:3px;flex-shrink:0}
+.ac-keyword{background:rgba(199,122,234,.2);color:#c792ea}
+.ac-builtin{background:rgba(130,170,255,.2);color:#82aaff}
+.ac-snippet{background:rgba(195,232,141,.2);color:#c3e88d}
 .editor-statusbar{height:26px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
 .admin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
 .admin-card h3{font-family:'Syne',sans-serif;font-size:18px;margin-bottom:16px}
@@ -491,9 +518,18 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
       <div class="file-tree-list" id="file-tree-list"></div>
     </div>
     <div class="editor-main">
-      <textarea class="code-editor" id="code-editor" placeholder="# Write your Python code here..." spellcheck="false"></textarea>
+      <div class="code-editor-wrap" id="code-editor-wrap">
+        <div class="line-numbers" id="line-numbers"></div>
+        <div class="code-highlight" id="code-highlight" aria-hidden="true"></div>
+        <textarea class="code-editor" id="code-editor" placeholder="# Write your Python code here..." spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        <!-- Autocomplete dropdown -->
+        <div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>
+      </div>
       <div class="editor-statusbar">
-        <span id="status-file">main.py</span><span id="status-lines">Lines: 0</span><span id="status-chars">Chars: 0</span>
+        <span id="status-file">main.py</span>
+        <span id="status-lines">Lines: 0</span>
+        <span id="status-chars">Chars: 0</span>
+        <span id="status-cursor">Ln 1, Col 1</span>
         <span style="margin-left:auto;color:var(--accent)">Python 3.x</span>
       </div>
     </div>
@@ -995,9 +1031,16 @@ async function createProject(){
 }
 
 function openEditor(){
-  showView('view-editor');document.getElementById('editor-project-name').textContent=editorState.projectName;
-  document.getElementById('code-editor').value=editorState.files[editorState.activeFile]||'';renderFileTree();updateEditorStatus();
-  document.getElementById('code-editor').oninput=()=>{editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;updateEditorStatus();autoSave();};
+  showView('view-editor');
+  document.getElementById('editor-project-name').textContent=editorState.projectName;
+  const ta=document.getElementById('code-editor');
+  ta.value=editorState.files[editorState.activeFile]||'';
+  renderFileTree();updateEditorStatus();
+  // Remove old listeners by cloning
+  const newTa=ta.cloneNode(true);
+  ta.parentNode.replaceChild(newTa,ta);
+  initCodeEditor();
+  updateEditorUI();
 }
 
 let saveTimeout;
@@ -1053,20 +1096,164 @@ function selectFile(fname){
   const codeEl=document.getElementById('code-editor');
   if(content.startsWith('__binary__:')){
     const ext=(fname.split('.').pop()||'').toLowerCase();
-    const dataUrl=content.replace('__binary__:','');
-    if(['mp3','wav','ogg','flac'].includes(ext)){
-      codeEl.value=`# 🎵 Audio file: ${fname}\n# Preview: play in your project\n# This file is included in the ZIP download`;
-    } else if(['png','jpg','jpeg','gif','svg'].includes(ext)){
-      codeEl.value=`# 🖼️ Image file: ${fname}\n# This file is included in the ZIP download`;
-    } else {
-      codeEl.value=`# 📦 Binary file: ${fname}\n# This file is included in the ZIP download`;
-    }
+    if(['mp3','wav','ogg','flac'].includes(ext))codeEl.value=`# 🎵 Audio file: ${fname}\n# This file is included in the ZIP download`;
+    else if(['png','jpg','jpeg','gif','svg'].includes(ext))codeEl.value=`# 🖼️ Image file: ${fname}\n# This file is included in the ZIP download`;
+    else codeEl.value=`# 📦 Binary file: ${fname}\n# This file is included in the ZIP download`;
     codeEl.style.color='var(--text3)';
   } else {
-    codeEl.value=content;
-    codeEl.style.color='var(--text)';
+    codeEl.value=content;codeEl.style.color='var(--text)';
   }
-  renderFileTree();updateEditorStatus();
+  renderFileTree();updateEditorStatus();updateEditorUI();hideAutocomplete();
+}
+
+// ===================== CODE EDITOR ENGINE =====================
+const PY_KEYWORDS=['False','None','True','and','as','assert','async','await','break','class','continue','def','del','elif','else','except','finally','for','from','global','if','import','in','is','lambda','nonlocal','not','or','pass','raise','return','try','while','with','yield'];
+const PY_BUILTINS=['print','input','len','range','int','str','float','list','dict','tuple','set','bool','type','isinstance','hasattr','getattr','setattr','open','enumerate','zip','map','filter','sorted','reversed','sum','min','max','abs','round','format','repr','id','hash','dir','vars','super','object','Exception','ValueError','TypeError','KeyError','IndexError'];
+const PY_SNIPPETS=[
+  {label:'def function',insert:'def function_name():\n    pass',desc:'function'},
+  {label:'class MyClass',insert:'class MyClass:\n    def __init__(self):\n        pass',desc:'class'},
+  {label:'if __main__',insert:'if __name__ == "__main__":\n    main()',desc:'main guard'},
+  {label:'for loop',insert:'for i in range(10):\n    print(i)',desc:'for loop'},
+  {label:'while loop',insert:'while True:\n    break',desc:'while'},
+  {label:'try/except',insert:'try:\n    pass\nexcept Exception as e:\n    print(e)',desc:'try/except'},
+  {label:'with open',insert:'with open("file.txt", "r") as f:\n    content = f.read()',desc:'file'},
+  {label:'import',insert:'import ',desc:'import'},
+  {label:'print()',insert:'print("")',desc:'print'},
+];
+let acSelectedIndex=-1,acItems=[];
+
+function highlightPython(code){
+  if(!code)return '';
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return code.split('\n').map(line=>{
+    let r='',i=0;
+    while(i<line.length){
+      if(line[i]==='#'){r+=`<span class="tok-comment">${esc(line.slice(i))}</span>`;break;}
+      if(line[i]==='"'||line[i]==="'"){
+        const q=line[i];let e=i+1;
+        while(e<line.length&&line[e]!==q)e++;
+        r+=`<span class="tok-string">${esc(line.slice(i,e+1))}</span>`;i=e+1;continue;
+      }
+      if(/[0-9]/.test(line[i])&&(i===0||!/\w/.test(line[i-1]))){
+        let e=i;while(e<line.length&&/[0-9._xXbBoO]/.test(line[e]))e++;
+        r+=`<span class="tok-number">${esc(line.slice(i,e))}</span>`;i=e;continue;
+      }
+      if(/[a-zA-Z_]/.test(line[i])){
+        let e=i;while(e<line.length&&/\w/.test(line[e]))e++;
+        const w=line.slice(i,e),nx=line.slice(e).trimStart();
+        if(w==='True'||w==='False'||w==='None')r+=`<span class="tok-bool">${w}</span>`;
+        else if(PY_KEYWORDS.includes(w))r+=`<span class="tok-keyword">${w}</span>`;
+        else if(PY_BUILTINS.includes(w))r+=`<span class="tok-builtin">${w}</span>`;
+        else if(nx.startsWith('('))r+=`<span class="tok-function">${esc(w)}</span>`;
+        else r+=esc(w);
+        i=e;continue;
+      }
+      if(line[i]==='@'){let e=i+1;while(e<line.length&&/\w/.test(line[e]))e++;r+=`<span class="tok-decorator">${esc(line.slice(i,e))}</span>`;i=e;continue;}
+      if(/[+\-*\/=<>!&|^%~]/.test(line[i])){r+=`<span class="tok-operator">${esc(line[i])}</span>`;i++;continue;}
+      r+=esc(line[i]);i++;
+    }
+    return r;
+  }).join('\n');
+}
+
+function updateEditorUI(){
+  const ta=document.getElementById('code-editor');
+  const hl=document.getElementById('code-highlight');
+  const ln=document.getElementById('line-numbers');
+  if(!ta||!hl||!ln)return;
+  const code=ta.value;
+  hl.innerHTML=highlightPython(code)+'\n';
+  const lines=code.split('\n');
+  const cursorPos=ta.selectionStart;
+  const currentLine=code.slice(0,cursorPos).split('\n').length;
+  ln.innerHTML=lines.map((_,i)=>`<span class="${i+1===currentLine?'active-line':''}">${i+1}</span>`).join('');
+  hl.scrollTop=ta.scrollTop;hl.scrollLeft=ta.scrollLeft;ln.scrollTop=ta.scrollTop;
+  const col=code.slice(0,cursorPos).split('\n').pop().length+1;
+  const sc=document.getElementById('status-cursor');if(sc)sc.textContent=`Ln ${currentLine}, Col ${col}`;
+}
+
+function showAutocomplete(ta){
+  const pos=ta.selectionStart,text=ta.value.slice(0,pos);
+  const match=text.match(/[\w.]+$/);const word=match?match[0]:'';
+  if(!word||word.length<1){hideAutocomplete();return;}
+  const sugg=[];
+  PY_KEYWORDS.filter(k=>k.startsWith(word)&&k!==word).forEach(k=>sugg.push({label:k,type:'keyword',insert:k}));
+  PY_BUILTINS.filter(b=>b.startsWith(word)&&b!==word).forEach(b=>sugg.push({label:b,type:'builtin',insert:b}));
+  PY_SNIPPETS.filter(s=>s.label.toLowerCase().startsWith(word.toLowerCase())).forEach(s=>sugg.push({label:s.label,type:'snippet',insert:s.insert,desc:s.desc}));
+  if(sugg.length===0){hideAutocomplete();return;}
+  acItems=sugg.slice(0,8);acSelectedIndex=0;renderAutocomplete(ta);
+}
+
+function renderAutocomplete(ta){
+  const d=document.getElementById('autocomplete-dropdown');if(!d)return;
+  d.innerHTML='';
+  acItems.forEach((item,i)=>{
+    const div=document.createElement('div');div.className='autocomplete-item'+(i===acSelectedIndex?' selected':'');
+    const tl={'keyword':'kw','builtin':'fn','snippet':'snip'}[item.type]||item.type;
+    div.innerHTML=`<span class="ac-type ac-${item.type}">${tl}</span><span>${item.label}</span>${item.desc?`<span style="font-size:11px;color:var(--text3);margin-left:auto">${item.desc}</span>`:''}`;
+    div.onclick=()=>insertAutocomplete(ta,i);
+    d.appendChild(div);
+  });
+  const pos=ta.selectionStart,lines=ta.value.slice(0,pos).split('\n');
+  const lineNum=lines.length,col=lines[lines.length-1].length;
+  d.style.left=(49+16+col*8.4)+'px';
+  d.style.top=(20+(lineNum-1)*23.8+23.8)+'px';
+  d.style.display='block';
+}
+
+function hideAutocomplete(){const d=document.getElementById('autocomplete-dropdown');if(d)d.style.display='none';acItems=[];acSelectedIndex=-1;}
+
+function insertAutocomplete(ta,index){
+  if(index===undefined)index=acSelectedIndex;
+  const item=acItems[index];if(!item)return;
+  const pos=ta.selectionStart,before=ta.value.slice(0,pos),after=ta.value.slice(pos);
+  const wm=before.match(/[\w.]+$/),wl=wm?wm[0].length:0;
+  ta.value=before.slice(0,before.length-wl)+item.insert+after;
+  const np=before.length-wl+item.insert.length;
+  ta.setSelectionRange(np,np);
+  hideAutocomplete();editorState.files[editorState.activeFile]=ta.value;
+  updateEditorUI();updateEditorStatus();autoSave();ta.focus();
+}
+
+function initCodeEditor(){
+  const ta=document.getElementById('code-editor');if(!ta)return;
+  ta.addEventListener('input',()=>{
+    editorState.files[editorState.activeFile]=ta.value;
+    updateEditorUI();updateEditorStatus();autoSave();showAutocomplete(ta);
+  });
+  ta.addEventListener('scroll',()=>{
+    const hl=document.getElementById('code-highlight'),ln=document.getElementById('line-numbers');
+    if(hl){hl.scrollTop=ta.scrollTop;hl.scrollLeft=ta.scrollLeft;}
+    if(ln)ln.scrollTop=ta.scrollTop;
+  });
+  ta.addEventListener('click',()=>{updateEditorUI();hideAutocomplete();});
+  ta.addEventListener('keydown',e=>{
+    const d=document.getElementById('autocomplete-dropdown');
+    const acVis=d&&d.style.display==='block';
+    if(acVis&&e.key==='ArrowDown'){e.preventDefault();acSelectedIndex=Math.min(acSelectedIndex+1,acItems.length-1);renderAutocomplete(ta);return;}
+    if(acVis&&e.key==='ArrowUp'){e.preventDefault();acSelectedIndex=Math.max(acSelectedIndex-1,0);renderAutocomplete(ta);return;}
+    if(acVis&&(e.key==='Enter'||e.key==='Tab')){e.preventDefault();insertAutocomplete(ta);return;}
+    if(acVis&&e.key==='Escape'){hideAutocomplete();return;}
+    if(e.key==='Tab'){
+      e.preventDefault();
+      const s=ta.selectionStart,en=ta.selectionEnd;
+      if(s===en){ta.value=ta.value.slice(0,s)+'    '+ta.value.slice(en);ta.setSelectionRange(s+4,s+4);}
+      else{const ls=ta.value.split('\n'),sl=ta.value.slice(0,s).split('\n').length-1,el=ta.value.slice(0,en).split('\n').length-1;for(let i=sl;i<=el;i++)ls[i]='    '+ls[i];ta.value=ls.join('\n');}
+      editorState.files[editorState.activeFile]=ta.value;updateEditorUI();updateEditorStatus();autoSave();return;
+    }
+    const pairs={'(':')','{':'}','[':']'};
+    if(pairs[e.key]){e.preventDefault();const s=ta.selectionStart;ta.value=ta.value.slice(0,s)+e.key+pairs[e.key]+ta.value.slice(s);ta.setSelectionRange(s+1,s+1);editorState.files[editorState.activeFile]=ta.value;updateEditorUI();return;}
+    if(e.key==='Enter'){
+      e.preventDefault();const s=ta.selectionStart;
+      const ls=ta.value.slice(0,s).split('\n'),cl=ls[ls.length-1];
+      const ind=cl.match(/^(\s*)/)[1],extra=cl.trimEnd().endsWith(':')?'    ':'';
+      const ins='\n'+ind+extra;
+      ta.value=ta.value.slice(0,s)+ins+ta.value.slice(s);
+      ta.setSelectionRange(s+ins.length,s+ins.length);
+      editorState.files[editorState.activeFile]=ta.value;updateEditorUI();updateEditorStatus();autoSave();hideAutocomplete();
+    }
+  });
+  updateEditorUI();
 }
 function addNewFile(){const name=prompt('File name (any type, e.g. main.py, config.json, readme.txt):','utils.py');if(!name)return;const fname=name.includes('.')?name:name+'.py';if(editorState.files[fname]){toast('Already exists','error');return;}editorState.files[fname]='';selectFile(fname);renderFileTree();autoSave();}
 function deleteFile(fname){if(Object.keys(editorState.files).length<=1){toast("Can't delete only file",'error');return;}delete editorState.files[fname];editorState.activeFile=Object.keys(editorState.files)[0];document.getElementById('code-editor').value=editorState.files[editorState.activeFile];renderFileTree();autoSave();}
