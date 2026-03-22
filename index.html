@@ -101,7 +101,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 .badge-game{background:rgba(124,92,252,.3);color:var(--accent3);border:1px solid rgba(124,92,252,.4)}
 .badge-app{background:rgba(61,220,151,.2);color:var(--green);border:1px solid rgba(61,220,151,.3)}
 .pin-badge{position:absolute;top:10px;left:10px;background:rgba(255,209,102,.25);color:var(--yellow);border:1px solid rgba(255,209,102,.4);border-radius:30px;font-size:10px;font-weight:700;padding:3px 7px;font-family:'DM Mono',monospace}
-.project-card-body{padding:14px}
+
+/* HERO BANNER */
+.hero{position:relative;border-radius:20px;overflow:hidden;margin-bottom:32px;padding:48px 40px;background:linear-gradient(135deg,#0d0b1a 0%,#111028 50%,#0a0f1a 100%);border:1px solid var(--border2)}
+.hero-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.hero-orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.35}
+.hero-orb-1{width:400px;height:400px;background:var(--accent);top:-100px;left:-80px;animation:float1 10s ease-in-out infinite}
+.hero-orb-2{width:300px;height:300px;background:#3ddc97;bottom:-80px;right:10%;animation:float2 12s ease-in-out infinite}
+.hero-orb-3{width:200px;height:200px;background:#ffd166;top:20%;right:-50px;animation:float1 8s ease-in-out infinite reverse}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(124,92,252,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(124,92,252,.05) 1px,transparent 1px);background-size:40px 40px}
+.hero-content{position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(124,92,252,.2);border:1px solid rgba(124,92,252,.4);border-radius:30px;padding:5px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--accent3);margin-bottom:20px;animation:fadeUp .6s ease both}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(28px,5vw,52px);font-weight:800;line-height:1.1;margin-bottom:16px;animation:fadeUp .6s .1s ease both}
+.hero h1 span{background:linear-gradient(135deg,var(--accent2),var(--accent3),#3ddc97);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:16px;color:var(--text2);max-width:480px;line-height:1.7;margin-bottom:28px;animation:fadeUp .6s .2s ease both}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;animation:fadeUp .6s .3s ease both}
+.hero-stats{display:flex;gap:28px;margin-top:32px;animation:fadeUp .6s .4s ease both}
+.hero-stat{text-align:left}
+.hero-stat-value{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--text)}
+.hero-stat-label{font-size:12px;color:var(--text3);margin-top:2px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARD IMPROVEMENTS */
+.project-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .3s cubic-bezier(.175,.885,.32,1.275);position:relative}
+.project-card:hover{border-color:var(--accent);transform:translateY(-6px) scale(1.01);box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 0 1px rgba(124,92,252,.2),0 0 40px rgba(124,92,252,.1)}
+.project-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,92,252,.05),transparent);opacity:0;transition:opacity .3s;pointer-events:none;z-index:1}
+.project-card:hover::before{opacity:1}
+.project-card-thumb{height:140px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:56px;position:relative;overflow:hidden}
+.project-card-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,.4));pointer-events:none}
+.project-card-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}
+.project-card:hover .project-card-thumb img{transform:scale(1.05)}
+.project-card-body{padding:16px}
+.project-card-name{font-weight:700;font-size:15px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .project-card-name{font-weight:600;font-size:15px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .project-card-author{font-size:12px;color:var(--text3);margin-bottom:10px}
 .project-likes{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text3)}
@@ -258,6 +289,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
     </div>
     <div class="page-content">
       <div id="page-store">
+        <div class="hero" id="hero-section">
+          <div class="hero-bg">
+            <div class="hero-orb hero-orb-1"></div>
+            <div class="hero-orb hero-orb-2"></div>
+            <div class="hero-orb hero-orb-3"></div>
+            <div class="hero-grid"></div>
+          </div>
+          <div class="hero-content">
+            <div class="hero-badge">🏜️ DesertStore Platform</div>
+            <h1>Discover & Share<br><span>Python Projects</span></h1>
+            <p>A platform where developers share their Python apps and games. Download, play, and create your own!</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" onclick="document.getElementById('projects-grid').scrollIntoView({behavior:'smooth'})">🔍 Browse Projects</button>
+              <button class="btn btn-secondary" onclick="openNewProjectModal()">＋ Upload Your Project</button>
+            </div>
+            <div class="hero-stats" id="hero-stats">
+              <div class="hero-stat"><div class="hero-stat-value" id="stat-projects">0</div><div class="hero-stat-label">Projects</div></div>
+              <div class="hero-stat"><div class="hero-stat-value" id="stat-users">0</div><div class="hero-stat-label">Developers</div></div>
+              <div class="hero-stat"><div class="hero-stat-value" id="stat-games">0</div><div class="hero-stat-label">Games</div></div>
+            </div>
+          </div>
+        </div>
         <div class="page-header"><h1 class="page-title">All Projects</h1></div>
         <div class="filter-tabs">
           <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
@@ -493,8 +546,8 @@ function navigateTo(page){
   if(page==='notifications')renderNotifications();
 }
 
-function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderStore();}
-function setFilterTabUI(val){document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',(val==='all'&&t.textContent.trim()==='All')||(val==='Game'&&t.textContent.includes('Games'))||(val==='App'&&t.textContent.includes('Apps'))));}
+function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
+function setFilterTabUI(val){document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',(val==='all'&&t.textContent.trim()==='All')||(val==='Game'&&t.textContent.includes('Games'))||(val==='App'&&t.textContent.includes('Apps'))));const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';}
 
 async function renderStore(){
   document.getElementById('store-loading').style.display='';document.getElementById('projects-grid').style.display='none';document.getElementById('store-empty').style.display='none';
@@ -502,6 +555,14 @@ async function renderStore(){
   allProjects=projects||[];
   const ownerIds=[...new Set(allProjects.map(p=>p.owner_id))];let usernameMap={};
   if(ownerIds.length>0){const {data:owners}=await sb.from('users').select('id,username').in('id',ownerIds);(owners||[]).forEach(u=>usernameMap[u.id]=u.username);}
+
+  // Update hero stats
+  const {data:allUsers2}=await sb.from('users').select('id').neq('is_admin',true);
+  const statP=document.getElementById('stat-projects'),statU=document.getElementById('stat-users'),statG=document.getElementById('stat-games');
+  if(statP)animateCount(statP,allProjects.length);
+  if(statU)animateCount(statU,(allUsers2||[]).length);
+  if(statG)animateCount(statG,allProjects.filter(p=>p.category==='Game').length);
+
   let filtered=[...allProjects].sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
   if(storeFilter!=='all')filtered=filtered.filter(p=>p.category===storeFilter);
   const search=document.getElementById('search-input').value.toLowerCase();
@@ -510,8 +571,9 @@ async function renderStore(){
   const grid=document.getElementById('projects-grid'),empty=document.getElementById('store-empty');
   if(filtered.length===0){empty.style.display='';grid.style.display='none';return;}
   grid.style.display='';empty.style.display='none';grid.innerHTML='';
-  filtered.forEach(p=>{
+  filtered.forEach((p,i)=>{
     const card=document.createElement('div');card.className='project-card';
+    card.style.cssText=`animation:fadeUp .4s ${i*0.06}s ease both`;
     const iconHtml=p.icon?`<img src="${p.icon}" alt="">`:`<div>🐍</div>`;
     const votes=p.votes||{},likes=Object.values(votes).filter(v=>v==='like').length,dislikes=Object.values(votes).filter(v=>v==='dislike').length;
     const author=usernameMap[p.owner_id]||'unknown';
@@ -520,6 +582,11 @@ async function renderStore(){
       <div class="project-likes"><span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span><span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span></div></div>`;
     card.onclick=()=>openProjectDetail(p.id,author);grid.appendChild(card);
   });
+}
+
+function animateCount(el,target){
+  let start=0;const duration=1000,step=target/60;
+  const timer=setInterval(()=>{start+=step;if(start>=target){el.textContent=target;clearInterval(timer);}else el.textContent=Math.floor(start);},duration/60);
 }
 
 async function voteProject(id,type){
