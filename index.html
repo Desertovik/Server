@@ -1243,7 +1243,7 @@ async function renderCommunity(){
 async function loadFriends(){
   const {data:sent}=await sb.from('friendships').select('*').eq('sender_id',currentUser.id).eq('status','accepted');
   const {data:received}=await sb.from('friendships').select('*').eq('receiver_id',currentUser.id).eq('status','accepted');
-  const friendIds=[...(sent||[]).map(f=>f.receiver_id),...(received||[]).map(f=>f.sender_id)];
+  const friendIds=[...(sent||[]).map(f=>f.receiver_id),...(received||[]).map(f=>f.sender_id)].filter(id=>id!==currentUser.id);
   const list=document.getElementById('friends-list');
   if(friendIds.length===0){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No friends yet 👻<br><br>Search for a username above!</div>';return;}
   const {data:friends}=await sb.from('users').select('id,username').in('id',friendIds);
@@ -1267,6 +1267,7 @@ async function sendFriendRequest(){
   if(username===currentUser.username){toast("Can't add yourself 😅",'error');return;}
   const {data:target}=await sb.from('users').select('id,username').eq('username',username).single();
   if(!target){toast('User not found','error');return;}
+  if(target.id===currentUser.id){toast("Can't add yourself 😅",'error');return;}
   const {data:existing}=await sb.from('friendships').select('id,status').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${target.id}),and(sender_id.eq.${target.id},receiver_id.eq.${currentUser.id})`);
   if(existing&&existing.length>0){
     const s=existing[0].status;
@@ -1290,6 +1291,7 @@ async function sendFriendRequest(){
 }
 
 async function openChat(friend){
+  if(friend.id===currentUser.id){toast("Can't chat with yourself 😅",'error');return;}
   activeChatFriend=friend;
   document.getElementById('chat-username').textContent=friend.username;
   document.getElementById('chat-status').textContent='Direct Message';
