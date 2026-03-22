@@ -1979,18 +1979,23 @@ async function startOnlineTracking(){
   if(onlineInterval)clearInterval(onlineInterval);
   onlineInterval=setInterval(async()=>{
     await updateLastSeen();
-    // Check if session still valid every 2 minutes
+    // Check session every 30 seconds (faster detection)
     const sessionId=localStorage.getItem('ds_session_id');
     if(sessionId){
-      const {data:session}=await sb.from('sessions').select('id').eq('id',sessionId).single();
+      const {data:session}=await sb.from('sessions').select('id,banned').eq('id',sessionId).single();
       if(!session){
         localStorage.removeItem('ds_session_id');
         currentUser=null;localStorage.removeItem('ds_current');
         showView('view-auth');switchAuthTab('login');
         toast('⚠️ Your session was ended from another device','error');
+      } else if(session.banned){
+        localStorage.removeItem('ds_session_id');
+        currentUser=null;localStorage.removeItem('ds_current');
+        showView('view-auth');switchAuthTab('login');
+        toast('🚫 This device has been banned from your account','error');
       }
     }
-  },2*60*1000);
+  },30*1000);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){clearInterval(onlineInterval);onlineInterval=null;}
     else{updateLastSeen();onlineInterval=setInterval(updateLastSeen,30000);}
@@ -2088,23 +2093,34 @@ async function loadDevices(){
   list.innerHTML='';
   sessions.forEach(s=>{
     const isThis=s.id===currentSessionId;
+    const isBanned=s.banned;
     const lastActive=new Date(s.last_active);
     const minutesAgo=Math.floor((Date.now()-lastActive.getTime())/60000);
     const timeStr=minutesAgo<1?'Active now':minutesAgo<60?`${minutesAgo}m ago`:minutesAgo<1440?`${Math.floor(minutesAgo/60)}h ago`:lastActive.toLocaleDateString();
     const el=document.createElement('div');
-    el.style.cssText=`display:flex;align-items:center;gap:12px;padding:14px;background:${isThis?'rgba(124,92,252,.1)':'var(--bg3)'};border:1px solid ${isThis?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);margin-bottom:8px`;
+    el.style.cssText=`display:flex;align-items:center;gap:12px;padding:14px;background:${isBanned?'rgba(255,91,91,.05)':isThis?'rgba(124,92,252,.1)':'var(--bg3)'};border:1px solid ${isBanned?'rgba(255,91,91,.3)':isThis?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);margin-bottom:8px`;
     el.innerHTML=`
       <div style="font-size:28px;flex-shrink:0">${s.device_info?.split('·')[0]?.trim()||'💻'}</div>
       <div style="flex:1">
-        <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:8px">
+        <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${s.device_info?.split('·').slice(1).join('·')||'Unknown device'}
           ${isThis?'<span style="background:rgba(61,220,151,.15);color:var(--green);border:1px solid rgba(61,220,151,.3);border-radius:30px;font-size:11px;padding:2px 8px;font-family:DM Mono,monospace">This device</span>':''}
+          ${isBanned?'<span style="background:rgba(255,91,91,.15);color:var(--red);border:1px solid rgba(255,91,91,.3);border-radius:30px;font-size:11px;padding:2px 8px;font-family:DM Mono,monospace">🚫 Banned</span>':''}
         </div>
         <div style="font-size:12px;color:var(--text3);margin-top:3px">Last active: ${timeStr} · Added ${new Date(s.created_at).toLocaleDateString()}</div>
       </div>
-      ${!isThis?`<button class="btn btn-danger btn-sm" onclick="removeDevice('${s.id}')">🗑 Remove</button>`:''}`;
+      ${!isThis?`<div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-sm" style="background:${isBanned?'rgba(61,220,151,.15)':'rgba(255,91,91,.15)'};color:${isBanned?'var(--green)':'var(--red)'};border:1px solid ${isBanned?'rgba(61,220,151,.3)':'rgba(255,91,91,.3)'}" onclick="toggleBanDevice('${s.id}',${!isBanned})">${isBanned?'🔓 Unban':'🚫 Ban'}</button>
+        <button class="btn btn-danger btn-sm" onclick="removeDevice('${s.id}')">🗑</button>
+      </div>`:''}`;
     list.appendChild(el);
   });
+}
+
+async function toggleBanDevice(sessionId, ban){
+  await sb.from('sessions').update({banned:ban}).eq('id',sessionId);
+  toast(ban?'🚫 Device banned! They will be kicked in ~30 seconds':'🔓 Device unbanned!', ban?'error':'success');
+  loadDevices();
 }
 
 async function removeDevice(sessionId){
