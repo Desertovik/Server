@@ -757,10 +757,20 @@ function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.
 
 function showMainView(){
   showView('view-main');
-  document.getElementById('user-avatar-btn').textContent=currentUser.username[0].toUpperCase();
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
+  updateAvatarBtn();
   renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();navigateTo('store');
+}
+
+function updateAvatarBtn(){
+  const btn=document.getElementById('user-avatar-btn');
+  if(!btn)return;
+  if(currentUser.avatar){
+    btn.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    btn.textContent=currentUser.username[0].toUpperCase();
+  }
 }
 
 function renderAccountsList(){
@@ -1564,11 +1574,12 @@ async function saveProfile(){
   const updates={bio};
   if(currentUser._newAvatar)updates.avatar=currentUser._newAvatar;
   await sb.from('users').update(updates).eq('id',currentUser.id);
+  // Update currentUser in memory
+  currentUser.bio=bio;
+  if(updates.avatar)currentUser.avatar=updates.avatar;
+  delete currentUser._newAvatar;
   // Update avatar in topbar
-  if(updates.avatar){
-    const btn=document.getElementById('user-avatar-btn');
-    if(btn)btn.innerHTML=`<img src="${updates.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-  }
+  updateAvatarBtn();
   toast('✅ Profile saved!','success');
   renderProfile();
 }
@@ -1656,11 +1667,17 @@ async function openProjectDetail(id,authorName){
 
 async function rateProject(projectId,stars){
   if(!currentUser){toast('Login to rate','error');return;}
-  await sb.from('ratings').upsert({id:`${currentUser.id}_${projectId}`,project_id:projectId,user_id:currentUser.id,stars},{onConflict:'project_id,user_id'});
+  const {error}=await sb.from('ratings').upsert({
+    id:`${currentUser.id}_${projectId}`,
+    project_id:projectId,
+    user_id:currentUser.id,
+    stars
+  });
+  if(error){toast('Error saving rating','error');console.error(error);return;}
   toast(`⭐ Rated ${stars} star${stars>1?'s':''}!`,'success');
-  // Refresh
+  // Find author name and refresh
   const p=allProjects.find(pr=>pr.id===projectId);
-  const author=p?allProjects.find(pr=>pr.id===projectId):null;
+  const authorName=p?Object.keys(allProjects).find(k=>allProjects[k]?.id===projectId)||'':'';
   openProjectDetail(projectId,'');
 }
 
