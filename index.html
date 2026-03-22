@@ -521,6 +521,23 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
             </div>
           </div>
         </div>
+        <div class="settings-card">
+          <div class="settings-section-title">🔐 Security</div>
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" id="pwd-current" placeholder="Enter current password">
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="pwd-new" placeholder="Min 8 characters" oninput="checkPasswordStrength()">
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="pwd-confirm" placeholder="Repeat new password">
+          </div>
+          <div id="pwd-strength" style="font-size:12px;margin-bottom:12px;height:16px"></div>
+          <button class="btn btn-primary btn-sm" onclick="changePassword()">🔐 Change Password</button>
+        </div>
       </div>
       <div id="page-profile">
         <div class="page-header">
@@ -1948,6 +1965,49 @@ function toggleSetting(key){
   if(key==='tooltip')appSettings.tooltip=!appSettings.tooltip;
   saveSettings();applySettings();
   toast(key==='theme'?`Switched to ${appSettings.theme} theme 🎨`:`Floating tooltip ${appSettings.tooltip?'enabled':'disabled'}`,'info');
+}
+
+async function changePassword(){
+  const current=document.getElementById('pwd-current').value;
+  const newPwd=document.getElementById('pwd-new').value;
+  const confirm=document.getElementById('pwd-confirm').value;
+
+  if(!current||!newPwd||!confirm){toast('Fill in all fields','error');return;}
+  if(current!==currentUser.password){toast('❌ Current password is wrong','error');return;}
+  if(newPwd.length<8){toast('❌ Password must be at least 8 characters','error');return;}
+  if(newPwd!==confirm){toast('❌ Passwords do not match','error');return;}
+  if(newPwd===current){toast('❌ New password must be different','error');return;}
+
+  // Check if password is already used by someone else
+  const {data:existing}=await sb.from('users').select('id').eq('password',newPwd).neq('id',currentUser.id).single();
+  if(existing){toast('❌ This password is already in use, choose another','error');return;}
+
+  await sb.from('users').update({password:newPwd}).eq('id',currentUser.id);
+  currentUser.password=newPwd;
+
+  // Clear fields
+  document.getElementById('pwd-current').value='';
+  document.getElementById('pwd-new').value='';
+  document.getElementById('pwd-confirm').value='';
+  document.getElementById('pwd-strength').textContent='';
+
+  toast('✅ Password changed successfully!','success');
+}
+
+function checkPasswordStrength(){
+  const pwd=document.getElementById('pwd-new')?.value||'';
+  const el=document.getElementById('pwd-strength');
+  if(!el||!pwd){if(el)el.textContent='';return;}
+  let strength=0;
+  if(pwd.length>=8)strength++;
+  if(pwd.length>=12)strength++;
+  if(/[A-Z]/.test(pwd))strength++;
+  if(/[0-9]/.test(pwd))strength++;
+  if(/[!@#$%^&*]/.test(pwd))strength++;
+  const labels=['','🔴 Weak','🟠 Fair','🟡 Good','🟢 Strong','✅ Very Strong'];
+  const colors=['','var(--red)','#ff8c00','var(--yellow)','var(--green)','var(--green)'];
+  el.textContent=labels[strength]||'';
+  el.style.color=colors[strength]||'';
 }
 
 // FLOATING TOOLTIP
