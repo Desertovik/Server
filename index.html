@@ -728,7 +728,29 @@ async function init(){
   const {data:ac}=await sb.from('users').select('id').eq('username','admindesertovik').single();
   if(!ac)await sb.from('users').insert({id:'admin_desertovik',username:'admindesertovik',email:'desertdesertovik@gmail.com',password:'DesertAdminQ567DsGo445',is_admin:true});
   const sid=localStorage.getItem('ds_current');
-  if(sid){const {data:u}=await sb.from('users').select('*').eq('id',sid).single();if(u){currentUser=u;loadSettings();showMainView();return;}}
+  if(sid){
+    const {data:u}=await sb.from('users').select('*').eq('id',sid).single();
+    if(u){
+      currentUser=u;
+      // Check if session still valid
+      const sessionId=localStorage.getItem('ds_session_id');
+      if(sessionId){
+        const {data:session}=await sb.from('sessions').select('id').eq('id',sessionId).single();
+        if(!session){
+          // Session was removed — force logout
+          localStorage.removeItem('ds_session_id');
+          currentUser=null;
+          localStorage.removeItem('ds_current');
+          loadSettings();
+          showView('view-auth');
+          switchAuthTab('login');
+          toast('⚠️ Your session was ended from another device','error');
+          return;
+        }
+      }
+      loadSettings();showMainView();return;
+    }
+  }
   loadSettings();showView('view-auth');
 }
 
@@ -1955,8 +1977,20 @@ let onlineInterval=null;
 async function startOnlineTracking(){
   await updateLastSeen();
   if(onlineInterval)clearInterval(onlineInterval);
-  onlineInterval=setInterval(updateLastSeen,30000);
-  // Stop tracking when tab hidden
+  onlineInterval=setInterval(async()=>{
+    await updateLastSeen();
+    // Check if session still valid every 2 minutes
+    const sessionId=localStorage.getItem('ds_session_id');
+    if(sessionId){
+      const {data:session}=await sb.from('sessions').select('id').eq('id',sessionId).single();
+      if(!session){
+        localStorage.removeItem('ds_session_id');
+        currentUser=null;localStorage.removeItem('ds_current');
+        showView('view-auth');switchAuthTab('login');
+        toast('⚠️ Your session was ended from another device','error');
+      }
+    }
+  },2*60*1000);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){clearInterval(onlineInterval);onlineInterval=null;}
     else{updateLastSeen();onlineInterval=setInterval(updateLastSeen,30000);}
