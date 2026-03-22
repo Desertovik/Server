@@ -289,6 +289,20 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   /* Custom theme grid */
   #page-settings [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important}
 }
+/* SHOP */
+.coin-earn-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px}
+.coin-earn-item span{color:var(--yellow);font-weight:600;font-family:'DM Mono',monospace}
+.shop-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;transition:all .2s;position:relative}
+.shop-item:hover{border-color:var(--accent);transform:translateY(-2px)}
+.shop-item.owned{border-color:var(--green)}
+.shop-item.active-item{border-color:var(--yellow);background:rgba(255,209,102,.05)}
+.shop-item-icon{font-size:42px;line-height:1}
+.shop-item-name{font-weight:600;font-size:15px}
+.shop-item-desc{font-size:12px;color:var(--text3);line-height:1.5}
+.shop-item-price{display:flex;align-items:center;gap:6px;background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);border-radius:30px;padding:6px 14px;font-size:14px;font-weight:700;color:var(--yellow)}
+.user-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:30px;font-size:11px;font-weight:600;margin-left:4px}
+.boosted-badge{background:linear-gradient(135deg,#ffd166,#f4845f);color:#fff;font-size:10px;padding:2px 8px;border-radius:30px;font-family:'DM Mono',monospace;font-weight:700}
+
 .tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:30px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);color:var(--text2);background:var(--bg3);transition:all .2s;user-select:none}
 .tag:hover{border-color:var(--accent);color:var(--accent)}
 .tag.selected{background:rgba(124,92,252,.2);border-color:var(--accent);color:var(--accent2)}
@@ -495,6 +509,7 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="sidebar-item" id="nav-apps" onclick="navigateTo('apps')"><span class="icon">📦</span> Apps</div>
         <div class="sidebar-item" id="nav-mobile" onclick="navigateTo('mobile')"><span class="icon">📱</span> Mobile (Kivy)</div>
         <div class="sidebar-item" id="nav-leaderboard" onclick="navigateTo('leaderboard')"><span class="icon">🏆</span> Leaderboard</div>
+        <div class="sidebar-item" id="nav-shop" onclick="navigateTo('shop')"><span class="icon">🛒</span> Shop <span id="coins-sidebar" style="margin-left:auto;background:rgba(255,209,102,.15);color:var(--yellow);border-radius:30px;padding:2px 8px;font-size:11px;font-family:'DM Mono',monospace">🪙 0</span></div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">My Stuff</div>
@@ -804,6 +819,29 @@ body.theme-flash{animation:themeFlash .4s ease}
           </div>
         </div>
       </div>
+      <div id="page-shop">
+        <div class="page-header">
+          <h1 class="page-title">🛒 Shop</h1>
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);border-radius:30px;padding:8px 16px">
+            <span style="font-size:18px">🪙</span>
+            <span style="font-weight:700;font-size:16px;color:var(--yellow)" id="coins-display">0</span>
+            <span style="font-size:12px;color:var(--text3)">coins</span>
+          </div>
+        </div>
+        <div class="settings-card" style="margin-bottom:20px">
+          <div class="settings-section-title">💰 How to Earn Coins</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <div class="coin-earn-item">💬 Comment <span>+10 🪙</span></div>
+            <div class="coin-earn-item">👍 Like received <span>+7 🪙</span></div>
+            <div class="coin-earn-item">⭐ 1 star <span>+1 🪙</span></div>
+            <div class="coin-earn-item">⭐⭐ 2 stars <span>+3 🪙</span></div>
+            <div class="coin-earn-item">⭐⭐⭐ 3 stars <span>+5 🪙</span></div>
+            <div class="coin-earn-item">⭐⭐⭐⭐ 4 stars <span>+8 🪙</span></div>
+            <div class="coin-earn-item">⭐⭐⭐⭐⭐ 5 stars <span>+15 🪙</span></div>
+          </div>
+        </div>
+        <div id="shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1111,7 +1149,7 @@ function showMainView(){
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
   updateAvatarBtn();
-  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();navigateTo('store');
+  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();loadCoins();navigateTo('store');
 }
 
 function updateAvatarBtn(){
@@ -1134,7 +1172,7 @@ function renderAccountsList(){
 
 function navigateTo(page){
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
     const mnav=document.getElementById('mnav-'+p);
@@ -1183,6 +1221,7 @@ function navigateTo(page){
   else if(page==='allusers')renderAllUsersMobile();
   else if(page==='profile')renderProfile();
   else if(page==='leaderboard')renderLeaderboard();
+  else if(page==='shop')renderShop();
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
@@ -1995,6 +2034,180 @@ async function adminReject(){
   await sb.from('projects').update({status:'draft'}).eq('id',adminReviewTarget);closeModal('modal-admin-review');toast('Project rejected','info');renderAdmin();
 }
 
+// SHOP ITEMS
+const SHOP_ITEMS=[
+  // Badges
+  {id:'badge_pro',name:'Pro Badge',desc:'Show everyone you\'re a pro developer',icon:'💎',price:100,type:'badge',value:'💎 Pro',color:'#00b4d8'},
+  {id:'badge_legend',name:'Legend Badge',desc:'For the most legendary developers',icon:'👑',price:250,type:'badge',value:'👑 Legend',color:'#ffd166'},
+  {id:'badge_desert',name:'Desert King',desc:'Exclusive DesertStore badge',icon:'🏜️',price:500,type:'badge',value:'🏜️ Desert King',color:'#f4845f'},
+  {id:'badge_fire',name:'On Fire',desc:'You\'re on fire!',icon:'🔥',price:150,type:'badge',value:'🔥 On Fire',color:'#ff5b5b'},
+  // Frames
+  {id:'frame_gold',name:'Gold Frame',desc:'Golden avatar frame',icon:'🟡',price:200,type:'frame',value:'gold'},
+  {id:'frame_neon',name:'Neon Frame',desc:'Glowing neon avatar frame',icon:'💜',price:300,type:'frame',value:'neon'},
+  {id:'frame_rainbow',name:'Rainbow Frame',desc:'Animated rainbow frame',icon:'🌈',price:500,type:'frame',value:'rainbow'},
+  {id:'frame_fire',name:'Fire Frame',desc:'Animated fire avatar frame',icon:'🔥',price:400,type:'frame',value:'fire'},
+  // Exclusive particles
+  {id:'particle_crown',name:'Crown Particles',desc:'Royal crown particles',icon:'👑',price:150,type:'particle',value:'👑'},
+  {id:'particle_diamond',name:'Diamond Particles',desc:'Sparkling diamond particles',icon:'💎',price:200,type:'particle',value:'💎'},
+  {id:'particle_money',name:'Money Particles',desc:'Money flying everywhere',icon:'🪙',price:120,type:'particle',value:'🪙'},
+  {id:'particle_lightning',name:'Lightning Particles',desc:'Electric lightning particles',icon:'⚡',price:180,type:'particle',value:'⚡'},
+  // Exclusive themes
+  {id:'theme_midnight',name:'Midnight Theme',desc:'Deep blue midnight vibes',icon:'🌃',price:200,type:'theme',value:{bg:'#020412',bg2:'#050920',accent:'#4361ee',text:'#caf0f8'}},
+  {id:'theme_rose',name:'Rose Gold Theme',desc:'Elegant rose gold theme',icon:'🌹',price:200,type:'theme',value:{bg:'#1a0810',bg2:'#280d18',accent:'#ff6b9d',text:'#fce4ec'}},
+  {id:'theme_matrix',name:'Matrix Theme',desc:'You are the chosen one',icon:'🟩',price:300,type:'theme',value:{bg:'#000d00',bg2:'#001a00',accent:'#00ff41',text:'#ccffcc'}},
+  // Boost
+  {id:'boost_24h',name:'Project Boost 24h',desc:'Pin your project to top for 24 hours',icon:'🚀',price:300,type:'boost'},
+];
+
+let userCoins=0;
+let userPurchases=[];
+
+async function loadCoins(){
+  if(!currentUser)return;
+  const {data:u}=await sb.from('users').select('coins').eq('id',currentUser.id).single();
+  userCoins=u?.coins||0;
+  currentUser.coins=userCoins;
+  updateCoinsDisplay();
+}
+
+function updateCoinsDisplay(){
+  ['coins-display','coins-sidebar'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      if(id==='coins-sidebar')el.textContent='🪙 '+userCoins;
+      else el.textContent=userCoins;
+    }
+  });
+}
+
+async function addCoins(amount,reason){
+  if(!currentUser)return;
+  // Anti-dup key
+  const key=`ds_coin_${currentUser.id}_${reason}`;
+  if(localStorage.getItem(key))return;
+  localStorage.setItem(key,'1');
+  userCoins+=amount;
+  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+  currentUser.coins=userCoins;
+  updateCoinsDisplay();
+  toast(`+${amount} 🪙 coins! (${reason})`,'success');
+}
+
+async function loadUserPurchases(){
+  if(!currentUser)return;
+  const {data}=await sb.from('purchases').select('item_id').eq('user_id',currentUser.id);
+  userPurchases=(data||[]).map(p=>p.item_id);
+}
+
+async function renderShop(){
+  await loadCoins();
+  await loadUserPurchases();
+  const grid=document.getElementById('shop-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  // Group by type
+  const groups={'badge':'👑 Badges','frame':'🖼️ Avatar Frames','particle':'✨ Exclusive Particles','theme':'🎨 Exclusive Themes','boost':'🚀 Boosts'};
+  Object.entries(groups).forEach(([type,label])=>{
+    const items=SHOP_ITEMS.filter(i=>i.type===type);
+    if(!items.length)return;
+    const header=document.createElement('div');
+    header.style.cssText='grid-column:1/-1;font-size:13px;font-family:"DM Mono",monospace;color:var(--text3);padding:8px 0 4px;border-bottom:1px solid var(--border);margin-top:8px';
+    header.textContent=label;
+    grid.appendChild(header);
+    items.forEach(item=>{
+      const owned=userPurchases.includes(item.id);
+      const isActive=currentUser.active_badge===item.id||currentUser.active_frame===item.id;
+      const el=document.createElement('div');
+      el.className='shop-item'+(owned?' owned':'')+(isActive?' active-item':'');
+      el.innerHTML=`
+        ${owned?`<span class="shop-badge" style="background:rgba(61,220,151,.2);color:var(--green)">✓ Owned</span>`:''}
+        <div class="shop-item-icon">${item.icon}</div>
+        <div class="shop-item-name">${item.name}</div>
+        <div class="shop-item-desc">${item.desc}</div>
+        ${owned
+          ?`<button class="btn btn-sm" style="width:100%;background:${isActive?'rgba(255,209,102,.2)':'var(--bg3)'};color:${isActive?'var(--yellow)':'var(--text2)'};border:1px solid ${isActive?'rgba(255,209,102,.4)':'var(--border)'}" onclick="toggleShopItem('${item.id}','${item.type}')">${isActive?'✓ Active':'Activate'}</button>`
+          :`<div class="shop-item-price">🪙 ${item.price}</div>
+           <button class="btn btn-primary btn-sm" style="width:100%" onclick="buyItem('${item.id}')">Buy</button>`
+        }`;
+      grid.appendChild(el);
+    });
+  });
+}
+
+async function buyItem(itemId){
+  const item=SHOP_ITEMS.find(i=>i.id===itemId);
+  if(!item)return;
+  if(userPurchases.includes(itemId)){toast('Already owned!','info');return;}
+  if(userCoins<item.price){toast(`Not enough coins! Need ${item.price} 🪙`,'error');return;}
+  // Deduct coins
+  userCoins-=item.price;
+  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+  currentUser.coins=userCoins;
+  // Save purchase
+  await sb.from('purchases').insert({id:`pur_${currentUser.id}_${itemId}`,user_id:currentUser.id,item_id:itemId});
+  userPurchases.push(itemId);
+  updateCoinsDisplay();
+  toast(`✅ Bought ${item.name}!`,'success');
+  // Auto activate
+  await toggleShopItem(itemId,item.type);
+  renderShop();
+}
+
+async function toggleShopItem(itemId,type){
+  const item=SHOP_ITEMS.find(i=>i.id===itemId);if(!item)return;
+  if(type==='badge'){
+    const newVal=currentUser.active_badge===itemId?null:itemId;
+    await sb.from('users').update({active_badge:newVal}).eq('id',currentUser.id);
+    currentUser.active_badge=newVal;
+  } else if(type==='frame'){
+    const newVal=currentUser.active_frame===itemId?null:itemId;
+    await sb.from('users').update({active_frame:newVal}).eq('id',currentUser.id);
+    currentUser.active_frame=newVal;
+  } else if(type==='particle'){
+    appSettings.particleSymbol=item.value;
+    appSettings.particles=true;saveSettings();
+    if(appSettings.particles){stopParticles();startParticles();}
+    toast(`✨ ${item.name} particles activated!`,'success');
+  } else if(type==='theme'){
+    THEMES[itemId]={name:item.name,...item.value,bg2:adjustColor(item.value.bg,8)};
+    appSettings.theme=itemId;saveSettings();applySettings();renderThemeGrid();
+    toast(`🎨 ${item.name} activated!`,'success');
+  } else if(type==='boost'){
+    // Boost user's latest published project
+    const {data:projects}=await sb.from('projects').select('id,name').eq('owner_id',currentUser.id).eq('status','published').order('published_at',{ascending:false}).limit(1);
+    if(!projects||!projects.length){toast('No published projects to boost!','error');return;}
+    const boostedUntil=new Date(Date.now()+24*60*60*1000).toISOString();
+    await sb.from('projects').update({pinned:true}).eq('id',projects[0].id);
+    await sb.from('users').update({boosted_until:boostedUntil}).eq('id',currentUser.id);
+    toast(`🚀 "${projects[0].name}" boosted for 24h!`,'success');
+    renderStore();
+  }
+  renderShop();
+}
+
+// COIN REWARDS
+async function rewardComment(){
+  await addCoins(10,'comment_'+Date.now().toString().slice(-8));
+}
+
+async function rewardLikeReceived(projectOwnerId){
+  if(projectOwnerId===currentUser?.id)return;
+  const key=`ds_coin_like_${projectOwnerId}_${Date.now().toString().slice(-6)}`;
+  if(!localStorage.getItem(key)){
+    localStorage.setItem(key,'1');
+    // Give coins to project owner
+    const {data:owner}=await sb.from('users').select('coins').eq('id',projectOwnerId).single();
+    const newCoins=(owner?.coins||0)+7;
+    await sb.from('users').update({coins:newCoins}).eq('id',projectOwnerId);
+  }
+}
+
+async function rewardRating(stars){
+  const coinsMap={1:1,2:3,3:5,4:8,5:15};
+  const amount=coinsMap[stars]||0;
+  await addCoins(amount,`rating${stars}_${Date.now().toString().slice(-8)}`);
+}
+
 // PROFILE
 async function renderProfile(){
   const {data:user}=await sb.from('users').select('*').eq('id',currentUser.id).single();
@@ -2153,6 +2366,7 @@ async function rateProject(projectId,stars){
     stars
   });
   if(error){toast('Error saving rating','error');console.error(error);return;}
+  rewardRating(stars);
   toast(`⭐ Rated ${stars} star${stars>1?'s':''}!`,'success');
   // Find author name and refresh
   const p=allProjects.find(pr=>pr.id===projectId);
@@ -2167,6 +2381,7 @@ async function postComment(projectId){
   if(!content){toast('Write something first','error');return;}
   input.value='';
   await sb.from('comments').insert({id:'c_'+Date.now(),project_id:projectId,user_id:currentUser.id,content});
+  rewardComment();
   openProjectDetail(projectId,'');
 }
 
