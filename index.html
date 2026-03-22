@@ -200,7 +200,11 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
 .tag.selected{background:rgba(124,92,252,.2);border-color:var(--accent);color:var(--accent2)}
 .tag-display{display:inline-flex;align-items:center;padding:3px 8px;border-radius:30px;font-size:11px;font-weight:500;font-family:'DM Mono',monospace}
 
-/* THEME CARD */
+/* THEME ANIMATION */
+body.theme-anim{transition:background .4s ease,color .4s ease}
+body.theme-anim *{transition:background-color .3s ease,border-color .3s ease,color .3s ease !important}
+body.theme-flash{animation:themeFlash .4s ease}
+@keyframes themeFlash{0%{opacity:1}30%{opacity:.6}100%{opacity:1}}
 .theme-card{background:var(--bg3);border:2px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .2s;text-align:center}
 .theme-card:hover{border-color:var(--border2);transform:translateY(-2px)}
 .theme-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
@@ -505,7 +509,46 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
         <div class="page-header"><h1 class="page-title">⚙️ Settings</h1></div>
         <div class="settings-card">
           <div class="settings-section-title">🎨 Theme</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:8px" id="theme-grid"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px" id="theme-grid"></div>
+          <!-- Custom Theme -->
+          <div style="border-top:1px solid var(--border);padding-top:16px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px">🖌️ Custom Theme
+              <span style="font-size:11px;color:var(--text3);font-weight:400">— create your own!</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-family:'DM Mono',monospace">Background</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="color" id="custom-bg" value="#0a0a0f" style="width:40px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none">
+                  <input type="text" id="custom-bg-hex" value="#0a0a0f" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none" oninput="syncColorPicker('custom-bg','custom-bg-hex')">
+                </div>
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-family:'DM Mono',monospace">Accent Color</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="color" id="custom-accent" value="#7c5cfc" style="width:40px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none">
+                  <input type="text" id="custom-accent-hex" value="#7c5cfc" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none" oninput="syncColorPicker('custom-accent','custom-accent-hex')">
+                </div>
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-family:'DM Mono',monospace">Text Color</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="color" id="custom-text" value="#e8e8f0" style="width:40px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none">
+                  <input type="text" id="custom-text-hex" value="#e8e8f0" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;outline:none" oninput="syncColorPicker('custom-text','custom-text-hex')">
+                </div>
+              </div>
+            </div>
+            <!-- Preview -->
+            <div id="custom-theme-preview" style="background:#0a0a0f;border-radius:10px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;border:1px solid #2a2a38">
+              <div style="width:36px;height:36px;border-radius:50%;background:#7c5cfc;display:flex;align-items:center;justify-content:center;font-size:16px">D</div>
+              <div>
+                <div style="color:#e8e8f0;font-weight:600;font-size:14px">DesertStore Preview</div>
+                <div style="color:#5a5a70;font-size:12px">This is how it will look</div>
+              </div>
+              <div style="margin-left:auto;background:#7c5cfc;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px">Button</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="applyCustomTheme()">✓ Apply Custom Theme</button>
+          </div>
         </div>
         <div class="settings-card">
           <div class="settings-section-title">💬 Interface</div>
@@ -517,6 +560,18 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
             <div class="settings-toggle-wrap">
               <span id="tooltip-label" style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace">Off</span>
               <div class="settings-toggle" id="toggle-tooltip" onclick="toggleSetting('tooltip')">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <div class="settings-item-name">Theme Animation</div>
+              <div class="settings-item-desc">Smooth fade effect when switching themes</div>
+            </div>
+            <div class="settings-toggle-wrap">
+              <span id="anim-label" style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace">Off</span>
+              <div class="settings-toggle" id="toggle-anim" onclick="toggleSetting('animation')">
                 <div class="settings-toggle-knob"></div>
               </div>
             </div>
@@ -1843,12 +1898,16 @@ async function renderLeaderboard(){
 
   // Aggregate likes per user
   const devLikes={};
+  const countedProjects=new Set();
   allP.forEach(p=>{
+    if(countedProjects.has(p.id))return;
+    countedProjects.add(p.id);
     const likes=Object.values(p.votes||{}).filter(v=>v==='like').length;
     const uid=p.owner_id;
     const username=ownerMap[uid]||'?';
-    if(!devLikes[uid])devLikes[uid]={username,likes:0,projects:0};
-    devLikes[uid].likes+=likes;devLikes[uid].projects++;
+    if(!devLikes[uid])devLikes[uid]={username,likes:0,projects:0,uid};
+    devLikes[uid].likes+=likes;
+    devLikes[uid].projects++;
   });
   const topDevs=Object.values(devLikes).sort((a,b)=>b.likes-a.likes).slice(0,10);
 
@@ -1858,9 +1917,8 @@ async function renderLeaderboard(){
     topDevs.forEach((dev,i)=>{
       const el=document.createElement('div');el.className='leader-item';
       const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
-      const uid=Object.keys(devLikes).find(k=>devLikes[k]===dev)||'';
       el.innerHTML=`<div class="leader-rank ${rankClass}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-        ${renderAvatar(uid,36)}
+        ${renderAvatar(dev.uid||'',36)}
         <div style="flex:1"><div style="font-weight:500">${dev.username}</div><div style="font-size:12px;color:var(--text3)">${dev.projects} project(s)</div></div>
         <div style="font-size:14px;color:var(--yellow);font-weight:600">👍 ${dev.likes}</div>`;
       devsEl.appendChild(el);
@@ -2190,9 +2248,14 @@ function renderThemeGrid(){
 
 function selectTheme(key){
   appSettings.theme=key;
-  saveSettings();applySettings();
+  saveSettings();
+  if(appSettings.animation){
+    document.body.classList.add('theme-flash');
+    setTimeout(()=>document.body.classList.remove('theme-flash'),400);
+  }
+  applySettings();
   renderThemeGrid();
-  toast(`Theme changed to ${THEMES[key].name}`,'info');
+  toast(`Theme changed to ${THEMES[key]?.name||key}`,'info');
 }
 
 // Override applySettings to handle custom themes
@@ -2221,6 +2284,12 @@ function applySettings(){
   const ttLabel=document.getElementById('tooltip-label');
   if(ttToggle)ttToggle.classList.toggle('on',appSettings.tooltip);
   if(ttLabel)ttLabel.textContent=appSettings.tooltip?'On':'Off';
+  // Animation
+  const animToggle=document.getElementById('toggle-anim');
+  const animLabel=document.getElementById('anim-label');
+  if(animToggle)animToggle.classList.toggle('on',!!appSettings.animation);
+  if(animLabel)animLabel.textContent=appSettings.animation?'On':'Off';
+  document.body.classList.toggle('theme-anim',!!appSettings.animation);
 }
 
 function adjustColor(hex,amount){
@@ -2275,8 +2344,58 @@ function renderProjectTags(tags){
 
 function toggleSetting(key){
   if(key==='tooltip')appSettings.tooltip=!appSettings.tooltip;
+  if(key==='animation'){
+    appSettings.animation=!appSettings.animation;
+    document.body.classList.toggle('theme-anim',appSettings.animation);
+  }
   saveSettings();applySettings();
-  toast(`Floating tooltip ${appSettings.tooltip?'enabled':'disabled'}`,'info');
+  if(key==='tooltip')toast(`Floating tooltip ${appSettings.tooltip?'enabled':'disabled'}`,'info');
+  if(key==='animation')toast(`Theme animation ${appSettings.animation?'enabled':'disabled'}`,'info');
+}
+
+function syncColorPicker(pickerId, hexId){
+  const hex=document.getElementById(hexId)?.value;
+  const picker=document.getElementById(pickerId);
+  if(picker&&hex&&/^#[0-9a-fA-F]{6}$/.test(hex))picker.value=hex;
+  updateCustomPreview();
+}
+
+// Also sync when color picker changes
+document.addEventListener('input',e=>{
+  if(e.target.id==='custom-bg'){document.getElementById('custom-bg-hex').value=e.target.value;updateCustomPreview();}
+  if(e.target.id==='custom-accent'){document.getElementById('custom-accent-hex').value=e.target.value;updateCustomPreview();}
+  if(e.target.id==='custom-text'){document.getElementById('custom-text-hex').value=e.target.value;updateCustomPreview();}
+});
+
+function updateCustomPreview(){
+  const bg=document.getElementById('custom-bg')?.value||'#0a0a0f';
+  const accent=document.getElementById('custom-accent')?.value||'#7c5cfc';
+  const text=document.getElementById('custom-text')?.value||'#e8e8f0';
+  const preview=document.getElementById('custom-theme-preview');
+  if(!preview)return;
+  preview.style.background=bg;
+  preview.style.borderColor=adjustColor(bg,20);
+  preview.querySelector('div:nth-child(1)').style.background=accent;
+  preview.querySelector('div:nth-child(2) div:nth-child(1)').style.color=text;
+  preview.querySelector('div:nth-child(2) div:nth-child(2)').style.color=adjustColor(text,-60);
+  preview.querySelector('div:last-child').style.background=accent;
+}
+
+function applyCustomTheme(){
+  const bg=document.getElementById('custom-bg')?.value||'#0a0a0f';
+  const accent=document.getElementById('custom-accent')?.value||'#7c5cfc';
+  const text=document.getElementById('custom-text')?.value||'#e8e8f0';
+  // Save as custom theme
+  THEMES.custom={name:'🖌️ Custom',bg,bg2:adjustColor(bg,8),accent,text};
+  appSettings.theme='custom';
+  saveSettings();
+  if(appSettings.animation){
+    document.body.classList.add('theme-flash');
+    setTimeout(()=>document.body.classList.remove('theme-flash'),400);
+  }
+  applySettings();
+  renderThemeGrid();
+  toast('🖌️ Custom theme applied!','success');
 }
 
 async function changePassword(){
