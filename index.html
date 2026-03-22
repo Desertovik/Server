@@ -1276,10 +1276,14 @@ async function voteProject(id,type){
 async function downloadProject(id,name){
   if(!currentUser){toast('⚠️ Login required to download','error');return;}
   const p=allProjects.find(pr=>pr.id===id);if(!p||!p.files){toast('No files found','error');return;}
-  // Count download
-  const {error:dlErr}=await sb.from('projects').update({downloads:(p.downloads||0)+1}).eq('id',id);
-  if(dlErr)console.error('Download update error:',dlErr);
-  p.downloads=(p.downloads||0)+1;
+  // Count download only once per user per project
+  const dlKey=`ds_dl_${currentUser.id}_${id}`;
+  if(!localStorage.getItem(dlKey)){
+    localStorage.setItem(dlKey,'1');
+    const {error:dlErr}=await sb.from('projects').update({downloads:(p.downloads||0)+1}).eq('id',id);
+    if(dlErr)console.error('Download update error:',dlErr);
+    p.downloads=(p.downloads||0)+1;
+  }
   // Send Kivy instruction if mobile project downloaded on mobile
   if(p.platform==='mobile'&&window.innerWidth<=768){
     sb.from('notifications').insert({
