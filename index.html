@@ -736,6 +736,7 @@ async function doLogin(){
   setLoading('btn-login',false);
   if(!user){toast('Wrong username or password','error');return;}
   currentUser=user;localStorage.setItem('ds_current',user.id);
+  avatarCache[user.id]={username:user.username,avatar:user.avatar};
   if(!allLoggedIn.find(u=>u.id===user.id)){allLoggedIn.push({id:user.id,username:user.username});localStorage.setItem('ds_accounts',JSON.stringify(allLoggedIn));}
   showMainView();toast('Welcome, '+user.username+'!','success');
 }
@@ -857,6 +858,24 @@ async function renderStore(){
     card.onmouseleave=()=>hideTooltip();
     grid.appendChild(card);
   });
+}
+
+// Global avatar cache
+const avatarCache={};
+
+async function getAvatars(userIds){
+  const missing=userIds.filter(id=>!avatarCache[id]);
+  if(missing.length>0){
+    const {data:users}=await sb.from('users').select('id,username,avatar').in('id',missing);
+    (users||[]).forEach(u=>{avatarCache[u.id]={username:u.username,avatar:u.avatar};});
+  }
+}
+
+function renderAvatar(userId,size=28){
+  const u=avatarCache[userId];
+  if(!u)return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0">?</div>`;
+  if(u.avatar)return `<img src="${u.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0">${u.username[0].toUpperCase()}</div>`;
 }
 
 function animateCount(el,target){
@@ -1626,13 +1645,13 @@ async function openProjectDetail(id,authorName){
   const commentUserIds=[...new Set((comments||[]).map(c=>c.user_id))];
   let commentUserMap={};
   if(commentUserIds.length>0){
-    const {data:commentUsers}=await sb.from('users').select('id,username').in('id',commentUserIds);
-    (commentUsers||[]).forEach(u=>commentUserMap[u.id]=u.username);
+    await getAvatars(commentUserIds);
+    commentUserIds.forEach(uid=>{commentUserMap[uid]=avatarCache[uid]?.username||'?';});
   }
   const commentsHtml=(comments||[]).map(c=>`
     <div class="comment-item">
       <div class="comment-header">
-        <div class="comment-avatar">${(commentUserMap[c.user_id]||'?')[0].toUpperCase()}</div>
+        ${renderAvatar(c.user_id,28)}
         <div style="font-weight:500;font-size:13px">${commentUserMap[c.user_id]||'?'}</div>
         <div class="comment-time">${new Date(c.created_at).toLocaleDateString()}</div>
       </div>
@@ -1700,8 +1719,8 @@ async function renderLeaderboard(){
   const ownerIds=[...new Set(allP.map(p=>p.owner_id))];
   let ownerMap={};
   if(ownerIds.length>0){
-    const {data:owners}=await sb.from('users').select('id,username').in('id',ownerIds);
-    (owners||[]).forEach(u=>ownerMap[u.id]=u.username);
+    await getAvatars(ownerIds);
+    ownerIds.forEach(id=>{ownerMap[id]=avatarCache[id]?.username||'?';});
   }
 
   // Aggregate likes per user
@@ -1721,8 +1740,9 @@ async function renderLeaderboard(){
     topDevs.forEach((dev,i)=>{
       const el=document.createElement('div');el.className='leader-item';
       const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+      const uid=Object.keys(devLikes).find(k=>devLikes[k]===dev)||'';
       el.innerHTML=`<div class="leader-rank ${rankClass}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-        <div class="friend-avatar">${dev.username[0].toUpperCase()}</div>
+        ${renderAvatar(uid,36)}
         <div style="flex:1"><div style="font-weight:500">${dev.username}</div><div style="font-size:12px;color:var(--text3)">${dev.projects} project(s)</div></div>
         <div style="font-size:14px;color:var(--yellow);font-weight:600">👍 ${dev.likes}</div>`;
       devsEl.appendChild(el);
@@ -1770,14 +1790,16 @@ async function loadFriends(){
   const friendIds=[...(sent||[]).map(f=>f.receiver_id),...(received||[]).map(f=>f.sender_id)].filter(id=>id!==currentUser.id);
   const list=document.getElementById('friends-list');
   if(friendIds.length===0){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No friends yet 👻<br><br>Search for a username above!</div>';return;}
-  const {data:friends}=await sb.from('users').select('id,username').in('id',friendIds);
+  const {data:friends}=await sb.from('users').select('id,username,avatar').in('id',friendIds);
+  // Cache avatars
+  (friends||[]).forEach(u=>avatarCache[u.id]={username:u.username,avatar:u.avatar});
   list.innerHTML='';
   for(const f of (friends||[])){
     const {data:unread}=await sb.from('messages').select('id').eq('sender_id',f.id).eq('receiver_id',currentUser.id).eq('read',false);
     const unreadCount=(unread||[]).length;
     const el=document.createElement('div');
     el.className='friend-item'+(activeChatFriend?.id===f.id?' active':'');
-    el.innerHTML=`<div class="friend-avatar">${f.username[0].toUpperCase()}</div>
+    el.innerHTML=`${renderAvatar(f.id,36)}
       <div style="flex:1"><div style="font-weight:500;font-size:14px">${f.username}</div></div>
       ${unreadCount>0?`<span class="friend-unread">${unreadCount}</span>`:''}`;
     el.onclick=()=>openChat(f);
