@@ -1420,6 +1420,10 @@ async function updateNotifBadge(){
 
 function openNewProjectModal(){
   if(!currentUser){toast('Login first','error');return;}
+  if(window.innerWidth<=768){
+    toast('📱 Creating projects is only available on desktop','info');
+    return;
+  }
   newIconData=null;document.getElementById('new-project-name').value='';document.getElementById('new-project-desc').value='';
   document.getElementById('icon-preview-wrap').innerHTML=`<div style="font-size:36px;margin-bottom:8px">🖼️</div><div style="font-size:14px;color:var(--text2)">Click to upload icon</div><div style="font-size:12px;color:var(--text3);margin-top:4px">.PNG .JPG .JPEG</div>`;
   document.getElementById('icon-picker-area').classList.remove('has-icon');
@@ -2673,6 +2677,7 @@ function checkPasswordStrength(){
 let tooltipTimeout;
 function showTooltip(e,p,author){
   if(!appSettings.tooltip)return;
+  if(window.innerWidth<=768)return;
   const tt=document.getElementById('floating-tooltip');
   const votes=p.votes||{};
   document.getElementById('ft-name').textContent=p.name;
@@ -2694,12 +2699,6 @@ function hideTooltip(){
   document.getElementById('floating-tooltip').classList.remove('visible');
 }
 document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('active');if(!document.getElementById('user-avatar-wrap')?.contains(e.target))closeUserMenu();});
-
-// Disable tooltip on mobile
-function showTooltipIfDesktop(e,p,author){
-  if(window.innerWidth<=768)return;
-  showTooltip(e,p,author);
-}
 
 // PWA MANIFEST
 (function(){
