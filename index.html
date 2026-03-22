@@ -538,6 +538,13 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
           <div id="pwd-strength" style="font-size:12px;margin-bottom:12px;height:16px"></div>
           <button class="btn btn-primary btn-sm" onclick="changePassword()">🔐 Change Password</button>
         </div>
+        <div class="settings-card">
+          <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>📱 Devices</span>
+            <button class="btn btn-secondary btn-sm" onclick="loadDevices()">🔄 Refresh</button>
+          </div>
+          <div id="devices-list"><div style="text-align:center;padding:20px;color:var(--text3)"><div class="loading-spinner"></div></div></div>
+        </div>
       </div>
       <div id="page-profile">
         <div class="page-header">
@@ -778,7 +785,7 @@ function showMainView(){
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
   updateAvatarBtn();
-  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();navigateTo('store');
+  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();registerSession();navigateTo('store');
 }
 
 function updateAvatarBtn(){
@@ -829,7 +836,7 @@ function navigateTo(page){
   if(page==='my-projects')renderMyProjects();
   else if(page==='admin'&&currentUser?.is_admin)renderAdmin();
   else if(page==='notifications')renderNotifications();
-  else if(page==='settings')applySettings();
+  else if(page==='settings'){applySettings();loadDevices();}
   else if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
   else if(page==='profile')renderProfile();
   else if(page==='leaderboard')renderLeaderboard();
@@ -1958,6 +1965,82 @@ function applySettings(){
   const ttLabel=document.getElementById('tooltip-label');
   if(ttToggle)ttToggle.classList.toggle('on',appSettings.tooltip);
   if(ttLabel)ttLabel.textContent=appSettings.tooltip?'On':'Off';
+}
+
+async function registerSession(){
+  if(!currentUser)return;
+  const sessionId='s_'+currentUser.id+'_'+Date.now();
+  const deviceInfo=getDeviceInfo();
+  // Remove old sessions for this device (same browser)
+  const existingId=localStorage.getItem('ds_session_id');
+  if(existingId)await sb.from('sessions').delete().eq('id',existingId);
+  // Create new session
+  await sb.from('sessions').insert({id:sessionId,user_id:currentUser.id,device_info:deviceInfo,last_active:new Date().toISOString()});
+  localStorage.setItem('ds_session_id',sessionId);
+  // Update last_active every 5 minutes
+  setInterval(async()=>{
+    await sb.from('sessions').update({last_active:new Date().toISOString()}).eq('id',sessionId);
+  },5*60*1000);
+}
+
+function getDeviceInfo(){
+  const ua=navigator.userAgent;
+  let device='💻 Desktop';
+  if(/iPhone/.test(ua))device='📱 iPhone';
+  else if(/iPad/.test(ua))device='📱 iPad';
+  else if(/Android/.test(ua)&&/Mobile/.test(ua))device='📱 Android Phone';
+  else if(/Android/.test(ua))device='📱 Android Tablet';
+  let browser='Browser';
+  if(/Chrome/.test(ua)&&!/Edg/.test(ua))browser='Chrome';
+  else if(/Firefox/.test(ua))browser='Firefox';
+  else if(/Safari/.test(ua)&&!/Chrome/.test(ua))browser='Safari';
+  else if(/Edg/.test(ua))browser='Edge';
+  let os='';
+  if(/Windows/.test(ua))os='Windows';
+  else if(/Mac/.test(ua))os='Mac';
+  else if(/Linux/.test(ua))os='Linux';
+  else if(/iPhone|iPad/.test(ua))os='iOS';
+  else if(/Android/.test(ua))os='Android';
+  return `${device} · ${browser} · ${os}`;
+}
+
+async function loadDevices(){
+  const list=document.getElementById('devices-list');
+  if(!list)return;
+  list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)"><div class="loading-spinner"></div></div>';
+  const {data:sessions}=await sb.from('sessions').select('*').eq('user_id',currentUser.id).order('last_active',{ascending:false});
+  const currentSessionId=localStorage.getItem('ds_session_id');
+  if(!sessions||sessions.length===0){
+    list.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No devices found</div>';
+    return;
+  }
+  list.innerHTML='';
+  sessions.forEach(s=>{
+    const isThis=s.id===currentSessionId;
+    const lastActive=new Date(s.last_active);
+    const minutesAgo=Math.floor((Date.now()-lastActive.getTime())/60000);
+    const timeStr=minutesAgo<1?'Active now':minutesAgo<60?`${minutesAgo}m ago`:minutesAgo<1440?`${Math.floor(minutesAgo/60)}h ago`:lastActive.toLocaleDateString();
+    const el=document.createElement('div');
+    el.style.cssText=`display:flex;align-items:center;gap:12px;padding:14px;background:${isThis?'rgba(124,92,252,.1)':'var(--bg3)'};border:1px solid ${isThis?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);margin-bottom:8px`;
+    el.innerHTML=`
+      <div style="font-size:28px;flex-shrink:0">${s.device_info?.split('·')[0]?.trim()||'💻'}</div>
+      <div style="flex:1">
+        <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:8px">
+          ${s.device_info?.split('·').slice(1).join('·')||'Unknown device'}
+          ${isThis?'<span style="background:rgba(61,220,151,.15);color:var(--green);border:1px solid rgba(61,220,151,.3);border-radius:30px;font-size:11px;padding:2px 8px;font-family:DM Mono,monospace">This device</span>':''}
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">Last active: ${timeStr} · Added ${new Date(s.created_at).toLocaleDateString()}</div>
+      </div>
+      ${!isThis?`<button class="btn btn-danger btn-sm" onclick="removeDevice('${s.id}')">🗑 Remove</button>`:''}`;
+    list.appendChild(el);
+  });
+}
+
+async function removeDevice(sessionId){
+  if(!confirm('Remove this device from your account?'))return;
+  await sb.from('sessions').delete().eq('id',sessionId);
+  toast('✅ Device removed','success');
+  loadDevices();
 }
 
 function toggleSetting(key){
