@@ -799,12 +799,22 @@ async function doLogin(){
   currentUser=user;localStorage.setItem('ds_current',user.id);
   avatarCache[user.id]={username:user.username,avatar:user.avatar};
   if(!allLoggedIn.find(u=>u.id===user.id)){allLoggedIn.push({id:user.id,username:user.username});localStorage.setItem('ds_accounts',JSON.stringify(allLoggedIn));}
-  // Show device name modal if first time on this browser
+  // Send login notification
+  const deviceInfo=getDeviceInfo();
+  const now=new Date().toLocaleString();
+  await sb.from('notifications').insert({
+    id:'n_'+Date.now(),
+    user_id:user.id,
+    message:`🔐 New login to your account!\n\n📱 Device: ${deviceInfo}\n🕒 Time: ${now}\n\nIf this wasn't you — change your password immediately!`,
+    read:false,
+    type:'system'
+  });
+  // Show device name modal if first time
   const hasSession=localStorage.getItem('ds_session_id');
   if(!hasSession){
     showMainView();
     setTimeout(()=>{
-      document.getElementById('device-name-input').value=getDeviceInfo().split('·')[0].trim();
+      document.getElementById('device-name-input').value=deviceInfo.split('·')[0].trim();
       openModal('modal-device-name');
     },500);
   } else {
