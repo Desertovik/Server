@@ -1307,9 +1307,16 @@ function animateCount(el,target){
 
 async function voteProject(id,type){
   if(!currentUser){toast('Login to vote','error');return;}
-  const {data:p}=await sb.from('projects').select('votes').eq('id',id).single();if(!p)return;
-  const votes=p.votes||{};if(votes[currentUser.id]===type)delete votes[currentUser.id];else votes[currentUser.id]=type;
-  await sb.from('projects').update({votes}).eq('id',id);renderStore();
+  const {data:p}=await sb.from('projects').select('votes,owner_id').eq('id',id).single();if(!p)return;
+  const votes=p.votes||{};
+  const wasLiked=votes[currentUser.id]==='like';
+  if(votes[currentUser.id]===type)delete votes[currentUser.id];else votes[currentUser.id]=type;
+  await sb.from('projects').update({votes}).eq('id',id);
+  // Give coins to project owner when liked
+  if(type==='like'&&!wasLiked&&p.owner_id!==currentUser.id){
+    rewardLikeReceived(p.owner_id,id);
+  }
+  renderStore();
 }
 
 async function downloadProject(id,name){
@@ -2064,33 +2071,19 @@ let userPurchases=[];
 
 async function loadCoins(){
   if(!currentUser)return;
-  const {data:u}=await sb.from('users').select('coins').eq('id',currentUser.id).single();
+  const {data:u}=await sb.from('users').select('coins,active_badge,active_frame').eq('id',currentUser.id).single();
   userCoins=u?.coins||0;
   currentUser.coins=userCoins;
+  currentUser.active_badge=u?.active_badge;
+  currentUser.active_frame=u?.active_frame;
   updateCoinsDisplay();
 }
 
 function updateCoinsDisplay(){
-  ['coins-display','coins-sidebar'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){
-      if(id==='coins-sidebar')el.textContent='🪙 '+userCoins;
-      else el.textContent=userCoins;
-    }
-  });
-}
-
-async function addCoins(amount,reason){
-  if(!currentUser)return;
-  // Anti-dup key
-  const key=`ds_coin_${currentUser.id}_${reason}`;
-  if(localStorage.getItem(key))return;
-  localStorage.setItem(key,'1');
-  userCoins+=amount;
-  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
-  currentUser.coins=userCoins;
-  updateCoinsDisplay();
-  toast(`+${amount} 🪙 coins! (${reason})`,'success');
+  const el=document.getElementById('coins-display');
+  if(el)el.textContent=userCoins;
+  const el2=document.getElementById('coins-sidebar');
+  if(el2)el2.textContent='🪙 '+userCoins;
 }
 
 async function loadUserPurchases(){
@@ -2186,26 +2179,42 @@ async function toggleShopItem(itemId,type){
 }
 
 // COIN REWARDS
-async function rewardComment(){
-  await addCoins(10,'comment_'+Date.now().toString().slice(-8));
+// COIN SYSTEM
+async function addCoins(amount, reason){
+  if(!currentUser)return;
+  // Check if already rewarded for this reason in DB
+  const {data:existing}=await sb.from('coin_transactions').select('id').eq('user_id',currentUser.id).eq('reason',reason).single();
+  if(existing)return; // already rewarded
+  // Insert transaction
+  const {error}=await sb.from('coin_transactions').insert({id:'ct_'+Date.now()+'_'+Math.random().toString(36).slice(2),user_id:currentUser.id,amount,reason});
+  if(error)return;
+  // Update user coins
+  userCoins+=amount;
+  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+  currentUser.coins=userCoins;
+  updateCoinsDisplay();
+  toast(`+${amount} 🪙 coins!`,'success');
 }
 
-async function rewardLikeReceived(projectOwnerId){
-  if(projectOwnerId===currentUser?.id)return;
-  const key=`ds_coin_like_${projectOwnerId}_${Date.now().toString().slice(-6)}`;
-  if(!localStorage.getItem(key)){
-    localStorage.setItem(key,'1');
-    // Give coins to project owner
-    const {data:owner}=await sb.from('users').select('coins').eq('id',projectOwnerId).single();
-    const newCoins=(owner?.coins||0)+7;
-    await sb.from('users').update({coins:newCoins}).eq('id',projectOwnerId);
-  }
+async function rewardComment(projectId){
+  const reason=`comment_${currentUser.id}_${projectId}_${Date.now().toString().slice(0,-4)}`;
+  await addCoins(10,reason);
 }
 
-async function rewardRating(stars){
+async function rewardRating(stars,projectId){
+  const reason=`rating_${currentUser.id}_${projectId}`;
   const coinsMap={1:1,2:3,3:5,4:8,5:15};
-  const amount=coinsMap[stars]||0;
-  await addCoins(amount,`rating${stars}_${Date.now().toString().slice(-8)}`);
+  await addCoins(coinsMap[stars]||0,reason);
+}
+
+async function rewardLikeReceived(projectOwnerId,projectId){
+  if(!projectOwnerId||projectOwnerId===currentUser?.id)return;
+  const reason=`like_${currentUser.id}_${projectId}`;
+  const {data:existing}=await sb.from('coin_transactions').select('id').eq('reason',reason).single();
+  if(existing)return;
+  await sb.from('coin_transactions').insert({id:'ct_'+Date.now(),user_id:projectOwnerId,amount:7,reason});
+  const {data:owner}=await sb.from('users').select('coins').eq('id',projectOwnerId).single();
+  await sb.from('users').update({coins:(owner?.coins||0)+7}).eq('id',projectOwnerId);
 }
 
 // PROFILE
@@ -2366,7 +2375,7 @@ async function rateProject(projectId,stars){
     stars
   });
   if(error){toast('Error saving rating','error');console.error(error);return;}
-  rewardRating(stars);
+  rewardRating(stars,projectId);
   toast(`⭐ Rated ${stars} star${stars>1?'s':''}!`,'success');
   // Find author name and refresh
   const p=allProjects.find(pr=>pr.id===projectId);
@@ -2381,7 +2390,7 @@ async function postComment(projectId){
   if(!content){toast('Write something first','error');return;}
   input.value='';
   await sb.from('comments').insert({id:'c_'+Date.now(),project_id:projectId,user_id:currentUser.id,content});
-  rewardComment();
+  rewardComment(projectId);
   openProjectDetail(projectId,'');
 }
 
