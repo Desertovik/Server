@@ -516,6 +516,13 @@ let currentUser=null,allLoggedIn=JSON.parse(localStorage.getItem('ds_accounts')|
 let editorState={projectId:null,files:{},activeFile:'main.py',iconData:null,projectName:'',projectDesc:''};
 let newIconData=null,adminReviewTarget=null,allProjects=[],allUsers=[],pendingReg=null,pendingCode=null;
 
+// SETTINGS — declared at top so all functions can access it
+const appSettings={theme:'dark',tooltip:false};
+const _savedSettings=localStorage.getItem('ds_settings');
+if(_savedSettings){try{Object.assign(appSettings,JSON.parse(_savedSettings));}catch(e){}}
+// Apply theme immediately before page renders
+document.addEventListener('DOMContentLoaded',()=>{document.body.classList.toggle('light-theme',appSettings.theme==='light');});
+
 async function init(){
   const {data:ac}=await sb.from('users').select('id').eq('username','admindesertovik').single();
   if(!ac)await sb.from('users').insert({id:'admin_desertovik',username:'admindesertovik',email:'desertdesertovik@gmail.com',password:'DesertAdminQ567DsGo445',is_admin:true});
@@ -1140,8 +1147,6 @@ function isOnline(lastSeen){
 }
 
 function loadSettings(){
-  const saved=localStorage.getItem('ds_settings');
-  if(saved)Object.assign(appSettings,JSON.parse(saved));
   applySettings();
 }
 
