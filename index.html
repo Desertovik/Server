@@ -663,37 +663,39 @@ function renderAccountsList(){
 }
 
 function navigateTo(page){
-  // Hide ALL pages first
+  // Hide ALL pages including store
   ['store','my-projects','admin','notifications','settings','community'].forEach(p=>{
     const el=document.getElementById('page-'+p);
     if(el)el.style.display='none';
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
   });
-  // Hide admin page for non-admins always
-  if(!currentUser?.is_admin){
-    const adminPage=document.getElementById('page-admin');
-    if(adminPage)adminPage.style.display='none';
-  }
+
   // Show correct page
-  if(['store','games','apps'].includes(page)){
+  if(page==='store'||page==='games'||page==='apps'){
     document.getElementById('page-store').style.display='';
-    ['store','games','apps'].forEach(p=>{const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);});
+    ['store','games','apps'].forEach(p=>{
+      const n=document.getElementById('nav-'+p);
+      if(n)n.classList.toggle('active',p===page);
+    });
     if(page==='games'){storeFilter='Game';setFilterTabUI('Game');}
     else if(page==='apps'){storeFilter='App';setFilterTabUI('App');}
     else{storeFilter='all';setFilterTabUI('all');}
     renderStore();
-  } else {
-    const el=document.getElementById('page-'+page);
-    if(el)el.style.display='';
-    const nav=document.getElementById('nav-'+page);
-    if(nav)nav.classList.add('active');
+    return;
   }
+
+  // For all other pages
+  const pageEl=document.getElementById('page-'+page);
+  if(pageEl)pageEl.style.display='';
+  const navEl=document.getElementById('nav-'+page);
+  if(navEl)navEl.classList.add('active');
+
   if(page==='my-projects')renderMyProjects();
-  if(page==='admin'&&currentUser?.is_admin)renderAdmin();
-  if(page==='notifications')renderNotifications();
-  if(page==='settings')applySettings();
-  if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
+  else if(page==='admin'&&currentUser?.is_admin)renderAdmin();
+  else if(page==='notifications')renderNotifications();
+  else if(page==='settings')applySettings();
+  else if(page==='community'){if(chatInterval)clearInterval(chatInterval);renderCommunity();}
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
