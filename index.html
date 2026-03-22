@@ -353,7 +353,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
     <button class="btn btn-ghost btn-sm" onclick="exitEditor()">← Back</button>
     <span class="editor-project-name" id="editor-project-name">Project</span>
     <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn btn-secondary btn-sm" onclick="addNewFile()">＋ File</button>
+      <button class="btn btn-secondary btn-sm" onclick="addNewFile()">＋ New File</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file-input').click()">📥 Import File</button>
+      <input type="file" id="import-file-input" style="display:none" onchange="importFile(event)">
       <button class="btn btn-primary btn-sm" onclick="openUploadModal()">↑ Upload Project</button>
     </div>
   </div>
@@ -641,11 +643,18 @@ function downloadProject(id,name){
 }
 
 function generateZip(files, projectName){
-  // Simple ZIP generator without external libraries
   const fileEntries=[];
   for(const [fname,content] of Object.entries(files)){
-    const encoded=new TextEncoder().encode(content);
-    fileEntries.push({name:fname,data:encoded});
+    let data;
+    if(typeof content==='string'&&content.startsWith('__binary__:')){
+      const base64=content.replace('__binary__:','').split(',')[1];
+      const binary=atob(base64);
+      data=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)data[i]=binary.charCodeAt(i);
+    } else {
+      data=new TextEncoder().encode(content);
+    }
+    fileEntries.push({name:fname,data});
   }
   // Build ZIP manually
   const parts=[];let offset=0;const centralDir=[];
@@ -807,8 +816,62 @@ function renderFileTree(){
   });
 }
 
-function getFileIcon(fname){const ext=(fname.split('.').pop()||'').toLowerCase();return{py:'🐍',txt:'📝',json:'📋',md:'📖',html:'🌐',css:'🎨',js:'⚡',csv:'📊',xml:'📄',yaml:'⚙️',yml:'⚙️',ini:'⚙️',cfg:'⚙️',sh:'💻',bat:'💻'}[ext]||'📄';}
-function selectFile(fname){editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;editorState.activeFile=fname;document.getElementById('code-editor').value=editorState.files[fname]||'';renderFileTree();updateEditorStatus();}
+function getFileIcon(fname){const ext=(fname.split('.').pop()||'').toLowerCase();return{py:'🐍',txt:'📝',json:'📋',md:'📖',html:'🌐',css:'🎨',js:'⚡',csv:'📊',xml:'📄',yaml:'⚙️',yml:'⚙️',ini:'⚙️',cfg:'⚙️',sh:'💻',bat:'💻',mp3:'🎵',wav:'🎵',ogg:'🎵',flac:'🎵',mp4:'🎬',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',svg:'🖼️',pdf:'📕',zip:'📦'}[ext]||'📄';}
+
+function importFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const maxSize=4*1024*1024; // 4MB limit
+  if(file.size>maxSize){toast('File too large! Max 4MB','error');e.target.value='';return;}
+  const reader=new FileReader();
+  const isText=['py','txt','json','md','html','css','js','csv','xml','yaml','yml','ini','cfg','sh','bat'].includes(file.name.split('.').pop().toLowerCase());
+  if(isText){
+    reader.onload=ev=>{
+      editorState.files[file.name]=ev.target.result;
+      selectFile(file.name);renderFileTree();autoSave();
+      toast(`📥 Imported ${file.name}!`,'success');
+    };
+    reader.readAsText(file);
+  } else {
+    reader.onload=ev=>{
+      // Store as base64 with marker
+      editorState.files[file.name]='__binary__:'+ev.target.result;
+      renderFileTree();autoSave();
+      toast(`📥 Imported ${file.name}!`,'success');
+      // Switch to show preview instead of code
+      editorState.activeFile=file.name;
+      renderFileTree();
+      updateEditorStatus();
+      // Show preview in editor area
+      const codeEl=document.getElementById('code-editor');
+      codeEl.value=`# Binary file: ${file.name}\n# Size: ${(file.size/1024).toFixed(1)} KB\n# This file will be included in your project ZIP`;
+      codeEl.style.color='var(--text3)';
+    };
+    reader.readAsDataURL(file);
+  }
+  e.target.value=''; // Reset input
+}
+function selectFile(fname){
+  editorState.files[editorState.activeFile]=document.getElementById('code-editor').value;
+  editorState.activeFile=fname;
+  const content=editorState.files[fname]||'';
+  const codeEl=document.getElementById('code-editor');
+  if(content.startsWith('__binary__:')){
+    const ext=(fname.split('.').pop()||'').toLowerCase();
+    const dataUrl=content.replace('__binary__:','');
+    if(['mp3','wav','ogg','flac'].includes(ext)){
+      codeEl.value=`# 🎵 Audio file: ${fname}\n# Preview: play in your project\n# This file is included in the ZIP download`;
+    } else if(['png','jpg','jpeg','gif','svg'].includes(ext)){
+      codeEl.value=`# 🖼️ Image file: ${fname}\n# This file is included in the ZIP download`;
+    } else {
+      codeEl.value=`# 📦 Binary file: ${fname}\n# This file is included in the ZIP download`;
+    }
+    codeEl.style.color='var(--text3)';
+  } else {
+    codeEl.value=content;
+    codeEl.style.color='var(--text)';
+  }
+  renderFileTree();updateEditorStatus();
+}
 function addNewFile(){const name=prompt('File name (any type, e.g. main.py, config.json, readme.txt):','utils.py');if(!name)return;const fname=name.includes('.')?name:name+'.py';if(editorState.files[fname]){toast('Already exists','error');return;}editorState.files[fname]='';selectFile(fname);renderFileTree();autoSave();}
 function deleteFile(fname){if(Object.keys(editorState.files).length<=1){toast("Can't delete only file",'error');return;}delete editorState.files[fname];editorState.activeFile=Object.keys(editorState.files)[0];document.getElementById('code-editor').value=editorState.files[editorState.activeFile];renderFileTree();autoSave();}
 function updateEditorStatus(){const code=document.getElementById('code-editor').value;document.getElementById('status-file').textContent=editorState.activeFile;document.getElementById('status-lines').textContent='Lines: '+code.split('\n').length;document.getElementById('status-chars').textContent='Chars: '+code.length;}
