@@ -489,6 +489,7 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="sidebar-item active" id="nav-store" onclick="navigateTo('store')"><span class="icon">🏠</span> Store</div>
         <div class="sidebar-item" id="nav-games" onclick="navigateTo('games')"><span class="icon">🎮</span> Games</div>
         <div class="sidebar-item" id="nav-apps" onclick="navigateTo('apps')"><span class="icon">📦</span> Apps</div>
+        <div class="sidebar-item" id="nav-mobile" onclick="navigateTo('mobile')"><span class="icon">📱</span> Mobile (Kivy)</div>
         <div class="sidebar-item" id="nav-leaderboard" onclick="navigateTo('leaderboard')"><span class="icon">🏆</span> Leaderboard</div>
       </div>
       <div class="sidebar-section">
@@ -513,8 +514,8 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div class="mobile-nav-item active" id="mnav-store" onclick="navigateTo('store')">
         <span class="mn-icon">🏠</span><span class="mn-label">Store</span>
       </div>
-      <div class="mobile-nav-item" id="mnav-my-projects" onclick="navigateTo('my-projects')">
-        <span class="mn-icon">📁</span><span class="mn-label">Projects</span>
+      <div class="mobile-nav-item" id="mnav-mobile" onclick="navigateTo('mobile')">
+        <span class="mn-icon">📱</span><span class="mn-label">Kivy</span>
       </div>
       <div class="mobile-nav-item" id="mnav-notifications" onclick="navigateTo('notifications')">
         <span class="mn-icon">🔔</span><span class="mn-label">Alerts</span>
@@ -557,6 +558,7 @@ body.theme-flash{animation:themeFlash .4s ease}
           <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
           <button class="filter-tab" onclick="setFilter('Game',this)">🎮 Games</button>
           <button class="filter-tab" onclick="setFilter('App',this)">📦 Apps</button>
+          <button class="filter-tab" onclick="setFilter('mobile',this)">📱 Mobile</button>
         </div>
         <div id="store-loading" style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>
         <div class="projects-grid" id="projects-grid" style="display:none"></div>
@@ -830,6 +832,23 @@ body.theme-flash{animation:themeFlash .4s ease}
     <input type="file" id="icon-file-input" accept=".png,.jpg,.jpeg" style="display:none" onchange="handleIconUpload(event)">
     <div class="form-group"><label>Project Name</label><input type="text" id="new-project-name" placeholder="My Awesome Game"></div>
     <div class="form-group"><label>Description</label><textarea id="new-project-desc" placeholder="Describe your project..."></textarea></div>
+    <!-- Platform toggle -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-weight:500;font-size:14px" id="platform-label-title">💻 Desktop Project</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px" id="platform-label-desc">Standard Python app/game</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">💻</span>
+          <div class="settings-toggle" id="toggle-platform" onclick="togglePlatform()"><div class="settings-toggle-knob"></div></div>
+          <span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">📱</span>
+        </div>
+      </div>
+      <div id="kivy-info" style="display:none;background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.25);border-radius:8px;padding:10px;font-size:13px;color:var(--text2)">
+        📱 <strong>Mobile project (Kivy)</strong> — this project uses the Kivy framework for Android/iOS. Make sure your code uses <code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace">kivy</code> imports!
+      </div>
+    </div>
     <div class="form-group">
       <label>Tags (click to add)</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="tag-selector"></div>
@@ -1083,14 +1102,15 @@ function navigateTo(page){
     if(mnav)mnav.classList.remove('active');
   });
 
-  if(page==='store'||page==='games'||page==='apps'){
+  if(page==='store'||page==='games'||page==='apps'||page==='mobile'){
     document.getElementById('page-store').classList.add('page-active');
-    ['store','games','apps'].forEach(p=>{
-      const n=document.getElementById('nav-'+p);
-      if(n)n.classList.toggle('active',p===page);
+    ['store','games','apps','mobile'].forEach(p=>{
+      const n=document.getElementById('nav-'+p);if(n)n.classList.toggle('active',p===page);
+      const mn=document.getElementById('mnav-'+p);if(mn)mn.classList.toggle('active',p===page);
     });
     if(page==='games'){storeFilter='Game';setFilterTabUI('Game');}
     else if(page==='apps'){storeFilter='App';setFilterTabUI('App');}
+    else if(page==='mobile'){storeFilter='mobile';setFilterTabUI('mobile');}
     else{storeFilter='all';setFilterTabUI('all');}
     renderStore();
     return;
@@ -1126,7 +1146,16 @@ function navigateTo(page){
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
-function setFilterTabUI(val){document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',(val==='all'&&t.textContent.trim()==='All')||(val==='Game'&&t.textContent.includes('Games'))||(val==='App'&&t.textContent.includes('Apps'))));const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';}
+function setFilterTabUI(val){
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',
+    (val==='all'&&t.textContent.trim()==='All')||
+    (val==='Game'&&t.textContent.includes('Games'))||
+    (val==='App'&&t.textContent.includes('Apps'))||
+    (val==='mobile'&&t.textContent.includes('Mobile'))
+  ));
+  const hero=document.getElementById('hero-section');
+  if(hero)hero.style.display=val==='all'?'':'none';
+}
 
 async function renderStore(){
   document.getElementById('store-loading').style.display='';document.getElementById('projects-grid').style.display='none';document.getElementById('store-empty').style.display='none';
@@ -1143,7 +1172,13 @@ async function renderStore(){
   if(statG)animateCount(statG,allProjects.filter(p=>p.category==='Game').length);
 
   let filtered=[...allProjects].sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
-  if(storeFilter!=='all')filtered=filtered.filter(p=>p.category===storeFilter);
+  if(storeFilter==='mobile'){
+    filtered=filtered.filter(p=>p.platform==='mobile');
+  } else if(storeFilter!=='all'){
+    filtered=filtered.filter(p=>p.category===storeFilter&&p.platform!=='mobile');
+  } else {
+    filtered=filtered.filter(p=>p.platform!=='mobile');
+  }
   const search=document.getElementById('search-input').value.toLowerCase();
   if(search)filtered=filtered.filter(p=>p.name.toLowerCase().includes(search)||(p.description||'').toLowerCase().includes(search));
   document.getElementById('store-loading').style.display='none';
@@ -1156,7 +1191,7 @@ async function renderStore(){
     const iconHtml=p.icon?`<img src="${p.icon}" alt="">`:`<div>🐍</div>`;
     const votes=p.votes||{},likes=Object.values(votes).filter(v=>v==='like').length,dislikes=Object.values(votes).filter(v=>v==='dislike').length;
     const author=usernameMap[p.owner_id]||'unknown';
-    card.innerHTML=`<div class="project-card-thumb">${iconHtml}${p.pinned?'<span class="pin-badge">📌 Pinned</span>':''}<span class="project-card-badge badge-${(p.category||'app').toLowerCase()}">${p.category||'App'}</span></div>
+    card.innerHTML=`<div class="project-card-thumb">${iconHtml}${p.pinned?'<span class="pin-badge">📌 Pinned</span>':''}<span class="project-card-badge badge-${(p.category||'app').toLowerCase()}">${p.platform==='mobile'?'📱 Kivy':p.category||'App'}</span></div>
       <div class="project-card-body"><div class="project-card-name">${p.name}</div><div class="project-card-author">by ${author}</div>
       ${p.tags&&p.tags.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${renderProjectTags(p.tags.slice(0,3))}</div>`:''}
       <div class="project-likes"><span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span><span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span></div></div>`;
@@ -1421,13 +1456,34 @@ async function updateNotifBadge(){
   ['notif-badge-menu','notif-badge-sidebar'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.display=count>0?'':'none';el.textContent=count;}});
 }
 
+let projectPlatform='desktop';
+
+function togglePlatform(){
+  projectPlatform=projectPlatform==='desktop'?'mobile':'desktop';
+  const toggle=document.getElementById('toggle-platform');
+  const title=document.getElementById('platform-label-title');
+  const desc=document.getElementById('platform-label-desc');
+  const info=document.getElementById('kivy-info');
+  if(toggle)toggle.classList.toggle('on',projectPlatform==='mobile');
+  if(title)title.textContent=projectPlatform==='mobile'?'📱 Mobile Project (Kivy)':'💻 Desktop Project';
+  if(desc)desc.textContent=projectPlatform==='mobile'?'Kivy app for Android/iOS':'Standard Python app/game';
+  if(info)info.style.display=projectPlatform==='mobile'?'':'none';
+}
+
 function openNewProjectModal(){
   if(!currentUser){toast('Login first','error');return;}
   if(window.innerWidth<=768){
     toast('📱 Creating projects is only available on desktop','info');
     return;
   }
-  newIconData=null;document.getElementById('new-project-name').value='';document.getElementById('new-project-desc').value='';
+  newIconData=null;
+  projectPlatform='desktop';
+  document.getElementById('new-project-name').value='';
+  document.getElementById('new-project-desc').value='';
+  document.getElementById('toggle-platform').classList.remove('on');
+  document.getElementById('platform-label-title').textContent='💻 Desktop Project';
+  document.getElementById('platform-label-desc').textContent='Standard Python app/game';
+  document.getElementById('kivy-info').style.display='none';
   document.getElementById('icon-preview-wrap').innerHTML=`<div style="font-size:36px;margin-bottom:8px">🖼️</div><div style="font-size:14px;color:var(--text2)">Click to upload icon</div><div style="font-size:12px;color:var(--text3);margin-top:4px">.PNG .JPG .JPEG</div>`;
   document.getElementById('icon-picker-area').classList.remove('has-icon');
   renderTagSelector();
@@ -1445,8 +1501,12 @@ async function createProject(){
   const name=document.getElementById('new-project-name').value.trim(),desc=document.getElementById('new-project-desc').value.trim();
   if(!name){toast('Enter a project name','error');return;}
   setLoading('btn-create-project',true);
-  const id='p_'+Date.now(),files={'main.py':'# '+name+'\nprint("Hello from '+name+'!")'};
-  const {error}=await sb.from('projects').insert({id,name,description:desc,owner_id:currentUser.id,status:'draft',files,icon:newIconData,votes:{},pinned:false,tags:selectedTags||[]});
+  const isMobile=projectPlatform==='mobile';
+  const defaultCode=isMobile?
+    `# ${name} - Kivy Mobile App\nfrom kivy.app import App\nfrom kivy.uix.label import Label\n\nclass ${name.replace(/\s/g,'')}App(App):\n    def build(self):\n        return Label(text='Hello from ${name}!')\n\nif __name__ == '__main__':\n    ${name.replace(/\s/g,'')}App().run()`:
+    `# ${name}\nprint("Hello from ${name}!")`;
+  const id='p_'+Date.now(),files={'main.py':defaultCode};
+  const {error}=await sb.from('projects').insert({id,name,description:desc,owner_id:currentUser.id,status:'draft',files,icon:newIconData,votes:{},pinned:false,tags:selectedTags||[],platform:projectPlatform});
   setLoading('btn-create-project',false);
   if(error){toast('Error creating project','error');return;}
   closeModal('modal-new-project');editorState={projectId:id,files,activeFile:'main.py',iconData:newIconData,projectName:name,projectDesc:desc};openEditor();
