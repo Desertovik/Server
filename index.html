@@ -533,6 +533,9 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div class="mobile-nav-item active" id="mnav-store" onclick="navigateTo('store')">
         <span class="mn-icon">🏠</span><span class="mn-label">Store</span>
       </div>
+      <div class="mobile-nav-item" id="mnav-shop" onclick="navigateTo('shop')">
+        <span class="mn-icon">🛒</span><span class="mn-label">Shop</span>
+      </div>
       <div class="mobile-nav-item" id="mnav-notifications" onclick="navigateTo('notifications')">
         <span class="mn-icon">🔔</span><span class="mn-label">Alerts</span>
         <span class="mobile-nav-badge" id="notif-badge-mobile" style="display:none">0</span>
@@ -540,9 +543,6 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div class="mobile-nav-item" id="mnav-community" onclick="navigateTo('community')">
         <span class="mn-icon">💬</span><span class="mn-label">Chat</span>
         <span class="mobile-nav-badge" id="msg-badge-mobile" style="display:none">0</span>
-      </div>
-      <div class="mobile-nav-item" id="mnav-allusers" onclick="navigateTo('allusers')">
-        <span class="mn-icon">🌍</span><span class="mn-label">Users</span>
       </div>
       <div class="mobile-nav-item" id="mnav-settings" onclick="navigateTo('settings')">
         <span class="mn-icon">⚙️</span><span class="mn-label">Settings</span>
@@ -1196,10 +1196,13 @@ function showMainView(){
 function updateAvatarBtn(){
   const btn=document.getElementById('user-avatar-btn');
   if(!btn)return;
+  const frameStyle=currentUser?.active_frame?getFrameStyle(currentUser.active_frame):'';
+  const borderCss=frameStyle?`border:${frameStyle}`:'';
   if(currentUser.avatar){
-    btn.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    btn.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;${borderCss}">`;
   } else {
     btn.textContent=currentUser.username[0].toUpperCase();
+    if(borderCss)btn.style.cssText+=`;${borderCss}`;
   }
 }
 
@@ -1336,9 +1339,11 @@ async function getAvatars(userIds){
 
 function renderAvatar(userId,size=28){
   const u=avatarCache[userId];
-  if(!u)return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0">?</div>`;
-  if(u.avatar)return `<img src="${u.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0">${u.username[0].toUpperCase()}</div>`;
+  const frameStyle=userId===currentUser?.id&&currentUser?.active_frame?getFrameStyle(currentUser.active_frame):'';
+  const borderCss=frameStyle?`border:${frameStyle}`:'';
+  if(!u)return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0;${borderCss}">?</div>`;
+  if(u.avatar)return `<img src="${u.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;${borderCss}">`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0;${borderCss}">${u.username[0].toUpperCase()}</div>`;
 }
 
 function animateCount(el,target){
@@ -2138,7 +2143,7 @@ function getFrameStyle(frameId){
   const frames={
     frame_gold:'3px solid #ffd166',
     frame_neon:'3px solid #7c5cfc',
-    frame_rainbow:'3px solid transparent;background:linear-gradient(var(--bg2),var(--bg2)) padding-box,linear-gradient(135deg,#f72585,#7c5cfc,#00b4d8) border-box',
+    frame_rainbow:'3px solid #f72585',
     frame_fire:'3px solid #f4845f'
   };
   return frames[frameId]||'';
