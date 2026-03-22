@@ -194,7 +194,69 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 /* LIGHT THEME */
 body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border:#dddde8;--border2:#ccccdd;--text:#1a1a2e;--text2:#4a4a6a;--text3:#8888aa}
 
-/* TAGS */
+/* MOBILE NAV BAR */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1000;background:var(--bg2);border-top:1px solid var(--border);padding:6px 0 max(6px,env(safe-area-inset-bottom));justify-content:space-around;align-items:center}
+.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border-radius:10px;cursor:pointer;transition:all .2s;position:relative;min-width:52px}
+.mobile-nav-item .mn-icon{font-size:22px;line-height:1}
+.mobile-nav-item .mn-label{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.mobile-nav-item.active .mn-label{color:var(--accent)}
+.mobile-nav-item.active .mn-icon{filter:drop-shadow(0 0 6px var(--accent))}
+.mobile-nav-badge{position:absolute;top:4px;right:8px;background:var(--red);color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+
+@media(max-width:768px){
+  /* Show mobile nav, hide sidebar */
+  .mobile-nav{display:flex}
+  .sidebar{display:none}
+  .page-content{padding:16px 14px 80px}
+  .main-content{flex-direction:column}
+
+  /* Topbar */
+  .topbar{padding:0 12px;gap:8px}
+  .topbar-search{display:none}
+  .topbar-logo span:last-child,.topbar-logo .dot{display:none}
+  .topbar-logo{gap:6px}
+  .topbar-right .btn{display:none}
+
+  /* Hero */
+  .hero{padding:24px 16px}
+  .hero h1{font-size:26px}
+  .hero-stats{gap:16px}
+  .hero-stat-value{font-size:28px}
+
+  /* Projects grid */
+  .projects-grid{grid-template-columns:1fr 1fr}
+
+  /* Profile grid */
+  #page-profile>div{grid-template-columns:1fr!important}
+
+  /* Leaderboard grid */
+  #page-leaderboard>div{grid-template-columns:1fr!important}
+
+  /* Community */
+  #page-community>div>div{grid-template-columns:1fr!important}
+
+  /* Settings */
+  #theme-grid{grid-template-columns:repeat(3,1fr)!important}
+
+  /* Modal */
+  .modal{margin:12px;max-width:calc(100vw - 24px)!important;max-height:90vh;overflow-y:auto}
+
+  /* Editor */
+  .editor-topbar{padding:0 10px;gap:6px;flex-wrap:wrap;height:auto;min-height:52px}
+  .editor-topbar .btn{font-size:11px;padding:5px 8px}
+  .file-tree{width:160px}
+  .code-editor,.code-highlight{font-size:12px}
+
+  /* Page header */
+  .page-header{flex-wrap:wrap;gap:8px}
+  .page-title{font-size:20px}
+
+  /* Admin cards */
+  .stats-row{grid-template-columns:1fr 1fr}
+
+  /* Custom theme grid */
+  #page-settings [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important}
+}
 .tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:30px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);color:var(--text2);background:var(--bg3);transition:all .2s;user-select:none}
 .tag:hover{border-color:var(--accent);color:var(--accent)}
 .tag.selected{background:rgba(124,92,252,.2);border-color:var(--accent);color:var(--accent2)}
@@ -415,6 +477,27 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="sidebar-item" id="nav-settings" onclick="navigateTo('settings')"><span class="icon">⚙️</span> Settings</div>
       </div>
     </div>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item active" id="mnav-store" onclick="navigateTo('store')">
+        <span class="mn-icon">🏠</span><span class="mn-label">Store</span>
+      </div>
+      <div class="mobile-nav-item" id="mnav-my-projects" onclick="navigateTo('my-projects')">
+        <span class="mn-icon">📁</span><span class="mn-label">Projects</span>
+      </div>
+      <div class="mobile-nav-item" id="mnav-notifications" onclick="navigateTo('notifications')">
+        <span class="mn-icon">🔔</span><span class="mn-label">Alerts</span>
+        <span class="mobile-nav-badge" id="notif-badge-mobile" style="display:none">0</span>
+      </div>
+      <div class="mobile-nav-item" id="mnav-community" onclick="navigateTo('community')">
+        <span class="mn-icon">👥</span><span class="mn-label">Community</span>
+        <span class="mobile-nav-badge" id="msg-badge-mobile" style="display:none">0</span>
+      </div>
+      <div class="mobile-nav-item" id="mnav-settings" onclick="navigateTo('settings')">
+        <span class="mn-icon">⚙️</span><span class="mn-label">Settings</span>
+      </div>
+    </nav>
     <div class="page-content">
       <div id="page-store">
         <div class="hero" id="hero-section">
@@ -962,12 +1045,12 @@ function renderAccountsList(){
 }
 
 function navigateTo(page){
-  // Remove active class from ALL pages
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  // Remove active from all nav items
   ['store','my-projects','admin','notifications','settings','community','profile','leaderboard'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
+    const mnav=document.getElementById('mnav-'+p);
+    if(mnav)mnav.classList.remove('active');
   });
 
   if(page==='store'||page==='games'||page==='apps'){
@@ -987,6 +1070,8 @@ function navigateTo(page){
   if(pageEl)pageEl.classList.add('page-active');
   const navEl=document.getElementById('nav-'+page);
   if(navEl)navEl.classList.add('active');
+  const mnavEl=document.getElementById('mnav-'+page);
+  if(mnavEl)mnavEl.classList.add('active');
 
   if(page==='my-projects')renderMyProjects();
   else if(page==='admin'&&currentUser?.is_admin)renderAdmin();
@@ -2114,7 +2199,7 @@ async function updateMsgBadge(){
   if(!currentUser)return;
   const {data}=await sb.from('messages').select('id').eq('receiver_id',currentUser.id).eq('read',false);
   const count=(data||[]).length;
-  ['msg-badge-menu','msg-badge-sidebar'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.display=count>0?'':'none';el.textContent=count;}});
+  ['msg-badge-menu','msg-badge-sidebar','msg-badge-mobile'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.display=count>0?'':'none';el.textContent=count;}});
 }
 
 function openModal(id){document.getElementById(id).classList.add('active');}
