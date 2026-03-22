@@ -1611,12 +1611,18 @@ async function openProjectDetail(id,authorName){
   const starsHtml=Array.from({length:5},(_,i)=>`<span class="star ${i<myRating?'filled':''}" data-star="${i+1}" onclick="rateProject('${p.id}',${i+1})">★</span>`).join('');
 
   // Load comments
-  const {data:comments}=await sb.from('comments').select('*,user:user_id(username,avatar)').eq('project_id',id).order('created_at',{ascending:false});
+  const {data:comments}=await sb.from('comments').select('*').eq('project_id',id).order('created_at',{ascending:false});
+  const commentUserIds=[...new Set((comments||[]).map(c=>c.user_id))];
+  let commentUserMap={};
+  if(commentUserIds.length>0){
+    const {data:commentUsers}=await sb.from('users').select('id,username').in('id',commentUserIds);
+    (commentUsers||[]).forEach(u=>commentUserMap[u.id]=u.username);
+  }
   const commentsHtml=(comments||[]).map(c=>`
     <div class="comment-item">
       <div class="comment-header">
-        <div class="comment-avatar">${c.user?.username?.[0]?.toUpperCase()||'?'}</div>
-        <div style="font-weight:500;font-size:13px">${c.user?.username||'?'}</div>
+        <div class="comment-avatar">${(commentUserMap[c.user_id]||'?')[0].toUpperCase()}</div>
+        <div style="font-weight:500;font-size:13px">${commentUserMap[c.user_id]||'?'}</div>
         <div class="comment-time">${new Date(c.created_at).toLocaleDateString()}</div>
       </div>
       <div class="comment-text">${escHtml(c.content)}</div>
@@ -1671,15 +1677,23 @@ async function postComment(projectId){
 // LEADERBOARD
 async function renderLeaderboard(){
   // Top developers by likes
-  const {data:projects}=await sb.from('projects').select('*,user:owner_id(username,avatar)').eq('status','published');
+  const {data:projects}=await sb.from('projects').select('*').eq('status','published');
   const allP=projects||[];
+  // Load usernames
+  const ownerIds=[...new Set(allP.map(p=>p.owner_id))];
+  let ownerMap={};
+  if(ownerIds.length>0){
+    const {data:owners}=await sb.from('users').select('id,username').in('id',ownerIds);
+    (owners||[]).forEach(u=>ownerMap[u.id]=u.username);
+  }
 
   // Aggregate likes per user
   const devLikes={};
   allP.forEach(p=>{
     const likes=Object.values(p.votes||{}).filter(v=>v==='like').length;
     const uid=p.owner_id;
-    if(!devLikes[uid])devLikes[uid]={username:p.user?.username||'?',likes:0,projects:0};
+    const username=ownerMap[uid]||'?';
+    if(!devLikes[uid])devLikes[uid]={username,likes:0,projects:0};
     devLikes[uid].likes+=likes;devLikes[uid].projects++;
   });
   const topDevs=Object.values(devLikes).sort((a,b)=>b.likes-a.likes).slice(0,10);
@@ -1725,6 +1739,7 @@ async function renderLeaderboard(){
     if(topProjects.length===0)projEl.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No ratings yet</div>';
   }
 }
+let activeChatFriend=null;
 let chatInterval=null;
 
 async function renderCommunity(){
