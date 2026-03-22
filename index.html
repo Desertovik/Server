@@ -1055,16 +1055,14 @@ async function doLogin(){
     const mobileKey='ds_mobile_notif_'+user.id;
     if(!localStorage.getItem(mobileKey)){
       localStorage.setItem(mobileKey,'1');
-      setTimeout(async()=>{
-        await sb.from('notifications').insert({
-          id:'n_'+Date.now(),
-          user_id:user.id,
-          message:`📱 Welcome to DesertStore on mobile!\n\nTo run Kivy apps from the platform:\n\n1️⃣ Download the Kivy app from the platform.\n\n2️⃣ Download Pydroid 3 from the Play Market (Google Play Store). Make sure the Kivy library is installed on Pydroid 3.\n\n3️⃣ Open the downloaded file using Pydroid 3 and run the Kivy app.`,
-          read:false,
-          type:'system'
-        });
-        updateNotifBadge();
-      },1000);
+      await sb.from('notifications').insert({
+        id:'n_mob_'+Date.now(),
+        user_id:user.id,
+        message:`📱 Welcome to DesertStore on mobile!\n\nTo run Kivy apps from the platform:\n\n1️⃣ Download the Kivy app from the platform.\n\n2️⃣ Download Pydroid 3 from the Play Market (Google Play Store). Make sure the Kivy library is installed on Pydroid 3.\n\n3️⃣ Open the downloaded file using Pydroid 3 and run the Kivy app.`,
+        read:false,
+        type:'system'
+      });
+      updateNotifBadge();
     }
   }
 }
