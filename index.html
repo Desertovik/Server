@@ -167,6 +167,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 .notif-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px;transition:all .2s}
 .notif-item.unread{background:var(--bg3);border-color:var(--accent);cursor:pointer}
 .notif-item.unread:hover{border-color:var(--accent2)}
+
+/* SETTINGS */
+.settings-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px}
+.settings-section-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text)}
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-item:last-child{border-bottom:none;padding-bottom:0}
+.settings-item-info{flex:1}
+.settings-item-name{font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px}
+.settings-item-desc{font-size:13px;color:var(--text3)}
+.settings-toggle-wrap{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.settings-toggle{width:48px;height:26px;background:var(--bg4);border:1px solid var(--border2);border-radius:30px;cursor:pointer;position:relative;transition:all .3s}
+.settings-toggle.on{background:var(--accent);border-color:var(--accent)}
+.settings-toggle-knob{width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:transform .3s;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.settings-toggle.on .settings-toggle-knob{transform:translateX(22px)}
+
+/* FLOATING TOOLTIP */
+.floating-tooltip{position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;pointer-events:none;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:180px;opacity:0;transition:opacity .15s;transform:translateY(4px)}
+.floating-tooltip.visible{opacity:1;transform:translateY(0)}
+.floating-tooltip-name{font-weight:600;font-size:14px;margin-bottom:4px}
+.floating-tooltip-author{font-size:12px;color:var(--text3);margin-bottom:8px}
+.floating-tooltip-meta{display:flex;gap:10px;font-size:12px;color:var(--text2)}
+
+/* LIGHT THEME */
+body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border:#dddde8;--border2:#ccccdd;--text:#1a1a2e;--text2:#4a4a6a;--text3:#8888aa}
 #view-editor{flex-direction:column}
 .editor-topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px}
 .editor-project-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:600;color:var(--text)}
@@ -208,6 +232,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 </head>
 <body>
 <div id="toast-container"></div>
+<div class="floating-tooltip" id="floating-tooltip">
+  <div class="floating-tooltip-name" id="ft-name"></div>
+  <div class="floating-tooltip-author" id="ft-author"></div>
+  <div class="floating-tooltip-meta">
+    <span id="ft-likes">👍 0</span>
+    <span id="ft-dislikes">👎 0</span>
+    <span id="ft-category">📦 App</span>
+  </div>
+</div>
 
 <!-- AUTH -->
 <div id="view-auth" class="view active">
@@ -286,6 +319,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
         <div class="sidebar-label">Admin</div>
         <div class="sidebar-item" id="nav-admin" onclick="navigateTo('admin')"><span class="icon">🛡️</span> Admin Panel</div>
       </div>
+      <div class="sidebar-section" style="margin-top:auto">
+        <div class="sidebar-label">System</div>
+        <div class="sidebar-item" id="nav-settings" onclick="navigateTo('settings')"><span class="icon">⚙️</span> Settings</div>
+      </div>
     </div>
     <div class="page-content">
       <div id="page-store">
@@ -342,6 +379,39 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
         <div class="admin-card"><h3>⏳ Pending Review</h3><div id="pending-list"></div><div class="empty-state" id="pending-empty" style="display:none;padding:30px"><div class="empty-icon">✅</div><h3>All clear!</h3></div></div>
         <div class="admin-card"><h3>📦 Published Projects</h3><div id="published-list"></div></div>
         <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
+      </div>
+      <div id="page-settings" style="display:none">
+        <div class="page-header"><h1 class="page-title">⚙️ Settings</h1></div>
+        <div class="settings-card">
+          <div class="settings-section-title">🎨 Appearance</div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <div class="settings-item-name">Theme</div>
+              <div class="settings-item-desc">Switch between Dark and Light mode</div>
+            </div>
+            <div class="settings-toggle-wrap">
+              <span id="theme-label" style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace">🌙 Dark</span>
+              <div class="settings-toggle" id="toggle-theme" onclick="toggleSetting('theme')">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div class="settings-section-title">💬 Interface</div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <div class="settings-item-name">Floating Tooltip</div>
+              <div class="settings-item-desc">Show project info when hovering over cards</div>
+            </div>
+            <div class="settings-toggle-wrap">
+              <span id="tooltip-label" style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace">Off</span>
+              <div class="settings-toggle" id="toggle-tooltip" onclick="toggleSetting('tooltip')">
+                <div class="settings-toggle-knob"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -450,8 +520,8 @@ async function init(){
   const {data:ac}=await sb.from('users').select('id').eq('username','admindesertovik').single();
   if(!ac)await sb.from('users').insert({id:'admin_desertovik',username:'admindesertovik',email:'desertdesertovik@gmail.com',password:'DesertAdminQ567DsGo445',is_admin:true});
   const sid=localStorage.getItem('ds_current');
-  if(sid){const {data:u}=await sb.from('users').select('*').eq('id',sid).single();if(u){currentUser=u;showMainView();return;}}
-  showView('view-auth');
+  if(sid){const {data:u}=await sb.from('users').select('*').eq('id',sid).single();if(u){currentUser=u;loadSettings();showMainView();return;}}
+  loadSettings();showView('view-auth');
 }
 
 function switchAuthTab(tab){
@@ -533,7 +603,7 @@ function renderAccountsList(){
 }
 
 function navigateTo(page){
-  ['store','my-projects','admin','notifications'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings'].forEach(p=>{
     const el=document.getElementById('page-'+p);if(el)el.style.display=p===page?'':'none';
     const nav=document.getElementById('nav-'+p);if(nav)nav.classList.toggle('active',p===page);
   });
@@ -546,6 +616,7 @@ function navigateTo(page){
   if(page==='my-projects')renderMyProjects();
   if(page==='admin')renderAdmin();
   if(page==='notifications')renderNotifications();
+  if(page==='settings'){applySettings();}
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
@@ -582,7 +653,11 @@ async function renderStore(){
     card.innerHTML=`<div class="project-card-thumb">${iconHtml}${p.pinned?'<span class="pin-badge">📌 Pinned</span>':''}<span class="project-card-badge badge-${(p.category||'app').toLowerCase()}">${p.category||'App'}</span></div>
       <div class="project-card-body"><div class="project-card-name">${p.name}</div><div class="project-card-author">by ${author}</div>
       <div class="project-likes"><span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span><span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span></div></div>`;
-    card.onclick=()=>openProjectDetail(p.id,author);grid.appendChild(card);
+    card.onclick=()=>openProjectDetail(p.id,author);
+    card.onmouseenter=(e)=>showTooltip(e,p,author);
+    card.onmousemove=(e)=>moveTooltip(e);
+    card.onmouseleave=()=>hideTooltip();
+    grid.appendChild(card);
   });
 }
 
@@ -1032,6 +1107,65 @@ function closeUserMenu(){document.getElementById('user-menu').classList.remove('
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setLoading(btnId,loading){const btn=document.getElementById(btnId);if(!btn)return;btn.disabled=loading;btn.innerHTML=loading?'<div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Loading...':btn.dataset.label||btn.innerHTML;}
 function toast(msg,type='info'){const t=document.createElement('div');t.className=`toast ${type}`;const icons={success:'✅',error:'❌',info:'ℹ️'};t.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;document.getElementById('toast-container').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3500);}
+
+// SETTINGS
+const appSettings={theme:'dark',tooltip:false};
+
+function loadSettings(){
+  const saved=localStorage.getItem('ds_settings');
+  if(saved)Object.assign(appSettings,JSON.parse(saved));
+  applySettings();
+}
+
+function saveSettings(){
+  localStorage.setItem('ds_settings',JSON.stringify(appSettings));
+}
+
+function applySettings(){
+  // Theme
+  document.body.classList.toggle('light-theme',appSettings.theme==='light');
+  const tToggle=document.getElementById('toggle-theme');
+  const tLabel=document.getElementById('theme-label');
+  if(tToggle)tToggle.classList.toggle('on',appSettings.theme==='light');
+  if(tLabel)tLabel.textContent=appSettings.theme==='light'?'☀️ Light':'🌙 Dark';
+  // Tooltip
+  const ttToggle=document.getElementById('toggle-tooltip');
+  const ttLabel=document.getElementById('tooltip-label');
+  if(ttToggle)ttToggle.classList.toggle('on',appSettings.tooltip);
+  if(ttLabel)ttLabel.textContent=appSettings.tooltip?'On':'Off';
+}
+
+function toggleSetting(key){
+  if(key==='theme')appSettings.theme=appSettings.theme==='dark'?'light':'dark';
+  if(key==='tooltip')appSettings.tooltip=!appSettings.tooltip;
+  saveSettings();applySettings();
+  toast(key==='theme'?`Switched to ${appSettings.theme} theme 🎨`:`Floating tooltip ${appSettings.tooltip?'enabled':'disabled'}`,'info');
+}
+
+// FLOATING TOOLTIP
+let tooltipTimeout;
+function showTooltip(e,p,author){
+  if(!appSettings.tooltip)return;
+  const tt=document.getElementById('floating-tooltip');
+  const votes=p.votes||{};
+  document.getElementById('ft-name').textContent=p.name;
+  document.getElementById('ft-author').textContent='by '+author;
+  document.getElementById('ft-likes').textContent='👍 '+Object.values(votes).filter(v=>v==='like').length;
+  document.getElementById('ft-dislikes').textContent='👎 '+Object.values(votes).filter(v=>v==='dislike').length;
+  document.getElementById('ft-category').textContent=(p.category==='Game'?'🎮':'📦')+' '+p.category;
+  tt.style.left=(e.clientX+16)+'px';
+  tt.style.top=(e.clientY-10)+'px';
+  tt.classList.add('visible');
+}
+function moveTooltip(e){
+  if(!appSettings.tooltip)return;
+  const tt=document.getElementById('floating-tooltip');
+  tt.style.left=(e.clientX+16)+'px';
+  tt.style.top=(e.clientY-10)+'px';
+}
+function hideTooltip(){
+  document.getElementById('floating-tooltip').classList.remove('visible');
+}
 document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('active');if(!document.getElementById('user-avatar-wrap')?.contains(e.target))closeUserMenu();});
 init();
 </script>
