@@ -547,6 +547,9 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div class="mobile-nav-item" id="mnav-settings" onclick="navigateTo('settings')">
         <span class="mn-icon">⚙️</span><span class="mn-label">Settings</span>
       </div>
+      <div class="mobile-nav-item" id="mnav-admin" onclick="navigateTo('admin')" style="display:none">
+        <span class="mn-icon">🛡️</span><span class="mn-label">Admin</span>
+      </div>
     </nav>
     <div class="page-content">
       <div id="page-store">
@@ -1244,6 +1247,9 @@ function showMainView(){
   showView('view-main');
   document.getElementById('user-menu-name').textContent=currentUser.username+(currentUser.is_admin?' 🛡️':'');
   [document.getElementById('admin-menu-item'),document.getElementById('admin-sidebar-section')].forEach(el=>{if(el)el.style.display=currentUser.is_admin?'':'none';});
+  // Show admin in mobile nav if admin
+  const mnavAdmin=document.getElementById('mnav-admin');
+  if(mnavAdmin)mnavAdmin.style.display=currentUser.is_admin?'flex':'none';
   updateAvatarBtn();
   renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();loadCoins();navigateTo('store');
 }
