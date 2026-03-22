@@ -1196,7 +1196,7 @@ async function renderStore(){
       ${p.tags&&p.tags.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${renderProjectTags(p.tags.slice(0,3))}</div>`:''}
       <div class="project-likes"><span class="like-btn" onclick="event.stopPropagation();voteProject('${p.id}','like')">👍 ${likes}</span><span class="dislike-btn" onclick="event.stopPropagation();voteProject('${p.id}','dislike')">👎 ${dislikes}</span></div></div>`;
     card.onclick=()=>openProjectDetail(p.id,author);
-    card.onmouseenter=(e)=>showTooltipIfDesktop(e,p,author);
+    card.onmouseenter=(e)=>showTooltip(e,p,author);
     card.onmousemove=(e)=>moveTooltip(e);
     card.onmouseleave=()=>hideTooltip();
     grid.appendChild(card);
@@ -1239,6 +1239,17 @@ function downloadProject(id,name){
   // Count download
   sb.from('projects').update({downloads:(p.downloads||0)+1}).eq('id',id);
   p.downloads=(p.downloads||0)+1;
+  // Send Kivy instruction if mobile project downloaded on mobile
+  if(p.platform==='mobile'&&window.innerWidth<=768){
+    sb.from('notifications').insert({
+      id:'n_'+Date.now(),
+      user_id:currentUser.id,
+      message:`📱 How to run "${p.name}" (Kivy App):\n\n1️⃣ Download the Kivy app from the platform.\n\n2️⃣ Download Pydroid 3 from the Play Market (Google Play Store). Make sure the Kivy library is installed on Pydroid 3.\n\n3️⃣ Run the downloaded app from the platform and open it using Pydroid 3. Then run the downloaded Kivy app.`,
+      read:false,
+      type:'system'
+    });
+    toast('📱 Check Notifications for how to run this app!','info');
+  }
   const files=p.files,fileNames=Object.keys(files);
   if(fileNames.length===1){
     const blob=new Blob([files[fileNames[0]]],{type:'text/plain'});
