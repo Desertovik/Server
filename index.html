@@ -2352,20 +2352,6 @@ function saveSettings(){
   localStorage.setItem('ds_settings',JSON.stringify(appSettings));
 }
 
-function applySettings(){
-  // Theme
-  document.body.classList.toggle('light-theme',appSettings.theme==='light');
-  const tToggle=document.getElementById('toggle-theme');
-  const tLabel=document.getElementById('theme-label');
-  if(tToggle)tToggle.classList.toggle('on',appSettings.theme==='light');
-  if(tLabel)tLabel.textContent=appSettings.theme==='light'?'☀️ Light':'🌙 Dark';
-  // Tooltip
-  const ttToggle=document.getElementById('toggle-tooltip');
-  const ttLabel=document.getElementById('tooltip-label');
-  if(ttToggle)ttToggle.classList.toggle('on',appSettings.tooltip);
-  if(ttLabel)ttLabel.textContent=appSettings.tooltip?'On':'Off';
-}
-
 function saveDeviceName(){
   const name=document.getElementById('device-name-input').value.trim();
   if(name)localStorage.setItem('ds_device_name',name);
