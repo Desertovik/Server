@@ -201,8 +201,8 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
 .tag-display{display:inline-flex;align-items:center;padding:3px 8px;border-radius:30px;font-size:11px;font-weight:500;font-family:'DM Mono',monospace}
 
 /* PARTICLES */
-.particle{position:fixed;pointer-events:none;z-index:9998;user-select:none;animation:particleFall linear infinite}
-@keyframes particleFall{0%{transform:translateY(-20px) rotate(0deg);opacity:0}10%{opacity:1}90%{opacity:.7}100%{transform:translateY(110vh) rotate(360deg);opacity:0}}
+.particle{position:fixed;pointer-events:none;z-index:1;user-select:none;animation:particleFall linear infinite;opacity:0}
+@keyframes particleFall{0%{transform:translateY(-20px) rotate(0deg);opacity:0}10%{opacity:0.35}90%{opacity:0.2}100%{transform:translateY(110vh) rotate(360deg);opacity:0}}
 
 /* THEME ANIMATION */
 body.theme-anim{transition:background .4s ease,color .4s ease}
@@ -2394,10 +2394,10 @@ function startParticles(){
   stopParticles();
   const sym=appSettings.particleSymbol||'✨';
   // Create initial particles
-  for(let i=0;i<15;i++){
-    setTimeout(()=>createParticle(sym),i*300);
+  for(let i=0;i<6;i++){
+    setTimeout(()=>createParticle(sym),i*500);
   }
-  particleInterval=setInterval(()=>createParticle(sym),600);
+  particleInterval=setInterval(()=>createParticle(sym),1200);
 }
 
 function createParticle(sym){
