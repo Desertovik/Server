@@ -1878,14 +1878,45 @@ function toggleAI(){
   }
 }
 
+function formatAIMessage(text){
+  // Replace ```lang\ncode\n``` with styled code blocks
+  return text.replace(/```(\w*)\n?([\s\S]*?)```/g,(match,lang,code)=>{
+    const id='cb_'+Math.random().toString(36).slice(2);
+    const langLabel=lang||'python';
+    return `<div style="background:#0d0d14;border:1px solid var(--border2);border-radius:8px;margin:6px 0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#161620;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel}</span>
+        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">
+          📋 Copy
+        </button>
+      </div>
+      <pre id="${id}" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(code.trim())}</pre>
+    </div>`;
+  }).replace(/`([^`]+)`/g,'<code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--accent2)">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+function copyCode(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  navigator.clipboard.writeText(el.textContent).then(()=>{
+    toast('✅ Code copied!','success');
+  });
+}
+
 function addAIMessage(role, text){
   const container=document.getElementById('ai-messages');
   if(!container)return;
   const div=document.createElement('div');
   div.style.cssText=`display:flex;flex-direction:column;gap:4px;align-items:${role==='user'?'flex-end':'flex-start'}`;
   const bubble=document.createElement('div');
-  bubble.style.cssText=`max-width:90%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;${role==='user'?'background:var(--accent);color:#fff;border-bottom-right-radius:4px':'background:var(--bg3);color:var(--text);border-bottom-left-radius:4px;border:1px solid var(--border)'}`;
-  bubble.textContent=text;
+  if(role==='user'){
+    bubble.style.cssText='max-width:90%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--accent);color:#fff;border-bottom-right-radius:4px';
+    bubble.textContent=text;
+  } else {
+    bubble.style.cssText='max-width:95%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--bg3);color:var(--text);border-bottom-left-radius:4px;border:1px solid var(--border)';
+    bubble.innerHTML=formatAIMessage(text);
+  }
   div.appendChild(bubble);
   container.appendChild(div);
   container.scrollTop=container.scrollHeight;
