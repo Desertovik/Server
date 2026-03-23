@@ -1337,9 +1337,24 @@ function updateAvatarBtn(){
 function renderAccountsList(){
   const list=document.getElementById('accounts-list');list.innerHTML='';
   allLoggedIn.forEach(acc=>{
-    const div=document.createElement('div');div.className='account-switch-item'+(acc.id===currentUser.id?' active-account':'');
-    div.innerHTML=`<span>${acc.id===currentUser.id?'✓':'○'}</span> ${acc.username}`;div.onclick=()=>switchToAccount(acc.id);list.appendChild(div);
+    const div=document.createElement('div');
+    div.className='account-switch-item'+(acc.id===currentUser.id?' active-account':'');
+    div.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px';
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer" onclick="switchToAccount('${acc.id}')">
+        <span>${acc.id===currentUser.id?'✓':'○'}</span>
+        <span>${acc.username}</span>
+      </div>
+      ${acc.id!==currentUser.id?`<button onclick="removeAccount('${acc.id}');event.stopPropagation()" style="background:rgba(255,91,91,.15);border:1px solid rgba(255,91,91,.3);border-radius:6px;color:var(--red);cursor:pointer;padding:3px 7px;font-size:13px;flex-shrink:0" title="Remove from list">🗑</button>`:''}`;
+    list.appendChild(div);
   });
+}
+
+function removeAccount(id){
+  allLoggedIn=allLoggedIn.filter(u=>u.id!==id);
+  localStorage.setItem('ds_accounts',JSON.stringify(allLoggedIn));
+  renderAccountsList();
+  toast('Account removed from list','info');
 }
 
 function navigateTo(page){
