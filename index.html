@@ -1934,34 +1934,28 @@ async function aiQuickAction(action){
 async function callAI(userMessage,code,fileName){
   const loading=addAILoadingMessage();
   try{
-    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. You help users with their Python code.
-Current file: ${fileName}
-Current code:
-\`\`\`python
-${code.slice(0,3000)}
-\`\`\`
-Be concise and helpful. Format code with proper indentation. If you provide fixed/improved code, show the full corrected version.`;
+    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Help users with their Python code. Current file: ${fileName}\nCurrent code:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise. Format code properly.`;
 
     aiHistory.push({role:'user',content:userMessage});
     if(aiHistory.length>10)aiHistory=aiHistory.slice(-10);
 
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key':'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',
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
+        'Authorization':'Bearer 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'
       },
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'llama-3.3-70b-versatile',
         max_tokens:1000,
-        system:systemPrompt,
-        messages:aiHistory
+        messages:[
+          {role:'system',content:systemPrompt},
+          ...aiHistory
+        ]
       })
     });
     const data=await res.json();
-    const reply=data.content?.[0]?.text||'Sorry, something went wrong.';
+    const reply=data.choices?.[0]?.message?.content||'Sorry, something went wrong.';
     loading?.remove();
     addAIMessage('ai',reply);
     aiHistory.push({role:'assistant',content:reply});
