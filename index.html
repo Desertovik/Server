@@ -1993,7 +1993,7 @@ async function callAI(userMessage,code,fileName){
     aiHistory.push({role:'user',parts:[{text:userMessage}]});
     if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
 
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyC5gllbYWZyefnwtPxtWobBo3Wjkw4TYjk`,{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=AIzaSyC5gllbYWZyefnwtPxtWobBo3Wjkw4TYjk`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
