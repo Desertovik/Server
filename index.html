@@ -381,7 +381,7 @@ body.theme-flash{animation:themeFlash .4s ease}
 .file-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .file-item-delete{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;opacity:0;transition:opacity .2s}
 .file-item:hover .file-item-delete{opacity:1}.file-item-delete:hover{color:var(--red)}
-.editor-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .code-editor-wrap{flex:1;display:flex;position:relative;overflow:hidden;background:var(--bg)}
 .line-numbers{width:48px;background:#0d0d14;border-right:1px solid var(--border);padding:20px 0;text-align:right;font-family:'DM Mono',monospace;font-size:14px;line-height:1.7;color:var(--text3);user-select:none;overflow:hidden;flex-shrink:0}
 .line-numbers span{display:block;padding-right:10px;min-height:23.8px}
@@ -974,9 +974,10 @@ body.theme-flash{animation:themeFlash .4s ease}
       <input type="file" id="import-file-input" style="display:none" onchange="importFile(event)">
       <button class="btn btn-secondary btn-sm" id="btn-editor-download" onclick="downloadFromEditor()">⬇ Download</button>
       <button class="btn btn-primary btn-sm" onclick="openUploadModal()">↑ Upload Project</button>
+      <button onclick="toggleAI()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(124,92,252,.4);transition:all .2s" title="AI Assistant">🤖</button>
     </div>
   </div>
-  <div class="editor-body" style="position:relative">
+  <div class="editor-body">
     <div class="file-tree">
       <div class="file-tree-header"><span>Files</span><button onclick="addNewFile()">＋</button></div>
       <div class="file-tree-list" id="file-tree-list"></div>
@@ -998,7 +999,7 @@ body.theme-flash{animation:themeFlash .4s ease}
     </div>
 
     <!-- AI PANEL -->
-    <div id="ai-panel" style="width:320px;min-width:320px;overflow:visible;transition:width .3s ease;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column">
+    <div id="ai-panel" style="width:320px;min-width:320px;overflow:hidden;transition:width .3s ease;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;height:100%">
       <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">🤖</span>
@@ -1023,8 +1024,6 @@ body.theme-flash{animation:themeFlash .4s ease}
       </div>
     </div>
 
-    <!-- AI Toggle Button -->
-    <button id="ai-toggle-btn" onclick="toggleAI()" style="position:absolute;bottom:40px;right:16px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(124,92,252,.5);z-index:10;transition:all .2s">🤖</button>
   </div>
 </div>
 
