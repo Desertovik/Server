@@ -1017,7 +1017,7 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">🤖</span>
           <span style="font-weight:600;font-size:14px">AI Assistant</span>
-          <span style="font-size:10px;background:rgba(124,92,252,.2);color:var(--accent);padding:2px 6px;border-radius:30px;font-family:'DM Mono',monospace">Claude</span>
+          <span style="font-size:10px;background:rgba(66,133,244,.2);color:#4285f4;padding:2px 6px;border-radius:30px;font-family:'DM Mono',monospace">Gemini</span>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="toggleAI()" style="padding:4px 8px">✕</button>
       </div>
@@ -1888,7 +1888,7 @@ function toggleAI(){
   }
   if(btn)btn.style.transform=aiOpen?'rotate(20deg) scale(1.1)':'scale(1)';
   if(aiOpen&&document.getElementById('ai-messages').children.length===0){
-    addAIMessage('ai','👋 Hi! I\'m your AI coding assistant powered by Llama 3.3.\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Find and fix bugs\n• ✨ Improve and optimize\n• 📝 Add comments\n• 💬 Answer Python questions\n\nJust ask me anything or use the quick buttons above!');
+    addAIMessage('ai','👋 Hi! I\'m your AI coding assistant powered by Gemini 2.0 Flash.\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Find and fix bugs\n• ✨ Improve and optimize\n• 📝 Add comments\n• 💬 Answer Python questions\n\nJust ask me anything or use the quick buttons above!');
   }
   if(aiOpen)setTimeout(()=>document.getElementById('ai-input')?.focus(),350);
 }
@@ -1990,29 +1990,22 @@ async function callAI(userMessage,code,fileName){
   try{
     const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Help users with their Python code. Current file: ${fileName}\nCurrent code:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise. Format code properly.`;
 
-    aiHistory.push({role:'user',content:userMessage});
+    aiHistory.push({role:'user',parts:[{text:userMessage}]});
     if(aiHistory.length>10)aiHistory=aiHistory.slice(-10);
 
-    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyC5gllbYWZyefnwtPxtWobBo3Wjkw4TYjk`,{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer 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'
-      },
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'llama-3.3-70b-versatile',
-        max_tokens:1000,
-        messages:[
-          {role:'system',content:systemPrompt},
-          ...aiHistory
-        ]
+        system_instruction:{parts:[{text:systemPrompt}]},
+        contents:aiHistory
       })
     });
     const data=await res.json();
-    const reply=data.choices?.[0]?.message?.content||'Sorry, something went wrong.';
+    const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'Sorry, something went wrong.';
     loading?.remove();
     addAIMessage('ai',reply);
-    aiHistory.push({role:'assistant',content:reply});
+    aiHistory.push({role:'model',parts:[{text:reply}]});
   }catch(e){
     loading?.remove();
     addAIMessage('ai','❌ Error connecting to AI. Please try again.');
