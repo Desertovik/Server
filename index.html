@@ -1991,17 +1991,19 @@ async function callAI(userMessage,code,fileName){
     const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Help users with their Python code. Current file: ${fileName}\nCurrent code:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise. Format code properly.`;
 
     aiHistory.push({role:'user',parts:[{text:userMessage}]});
-    if(aiHistory.length>10)aiHistory=aiHistory.slice(-10);
+    if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
 
     const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyC5gllbYWZyefnwtPxtWobBo3Wjkw4TYjk`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         system_instruction:{parts:[{text:systemPrompt}]},
-        contents:aiHistory
+        contents:aiHistory,
+        generationConfig:{maxOutputTokens:1500}
       })
     });
     const data=await res.json();
+    if(data.error){console.error('Gemini error:',data.error);loading?.remove();addAIMessage('ai',`❌ ${data.error.message}`);return;}
     const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'Sorry, something went wrong.';
     loading?.remove();
     addAIMessage('ai',reply);
