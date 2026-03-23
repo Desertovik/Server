@@ -1870,12 +1870,14 @@ function toggleAI(){
   const btn=document.getElementById('ai-toggle-btn');
   if(panel){
     panel.style.width=aiOpen?'320px':'0';
-    panel.style.overflow=aiOpen?'':'hidden';
+    panel.style.minWidth=aiOpen?'320px':'0';
+    panel.style.overflow=aiOpen?'visible':'hidden';
   }
-  if(btn)btn.style.transform=aiOpen?'rotate(20deg)':'';
+  if(btn)btn.style.transform=aiOpen?'rotate(20deg) scale(1.1)':'scale(1)';
   if(aiOpen&&document.getElementById('ai-messages').children.length===0){
-    addAIMessage('ai','👋 Hi! I\'m your AI coding assistant powered by Claude.\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Find and fix bugs\n• ✨ Improve and optimize\n• 📝 Add comments\n• 💬 Answer Python questions\n\nJust ask me anything or use the quick buttons above!');
+    addAIMessage('ai','👋 Hi! I\'m your AI coding assistant powered by Llama 3.3.\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Find and fix bugs\n• ✨ Improve and optimize\n• 📝 Add comments\n• 💬 Answer Python questions\n\nJust ask me anything or use the quick buttons above!');
   }
+  if(aiOpen)setTimeout(()=>document.getElementById('ai-input')?.focus(),350);
 }
 
 function formatAIMessage(text){
@@ -1899,7 +1901,15 @@ function formatAIMessage(text){
 function copyCode(id){
   const el=document.getElementById(id);
   if(!el)return;
-  navigator.clipboard.writeText(el.textContent).then(()=>{
+  const code=el.innerText||el.textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    toast('✅ Code copied!','success');
+  }).catch(()=>{
+    // Fallback
+    const ta=document.createElement('textarea');
+    ta.value=el.innerText||el.textContent;
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');ta.remove();
     toast('✅ Code copied!','success');
   });
 }
