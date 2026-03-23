@@ -1947,7 +1947,12 @@ Be concise and helpful. Format code with proper indentation. If you provide fixe
 
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':'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',
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1000,
