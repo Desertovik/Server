@@ -698,8 +698,16 @@ body.theme-flash{animation:themeFlash .4s ease}
               <input type="text" id="gift-username" placeholder="Enter username...">
             </div>
             <div class="form-group" style="margin:0">
-              <label>Amount (max 1000)</label>
-              <input type="number" id="gift-amount" placeholder="100" min="1" max="1000">
+              <label>Amount (max 20,000)</label>
+              <input type="number" id="gift-amount" placeholder="100" min="1" max="20000">
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=100">100</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=500">500</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=1000">1K</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=5000">5K</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=10000">10K</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('gift-amount').value=20000">20K</button>
             </div>
             <button class="btn btn-primary btn-sm" onclick="giveCoins()">🪙 Give Coins</button>
           </div>
@@ -2819,12 +2827,12 @@ async function giveCoins(){
   const username=document.getElementById('gift-username').value.trim();
   const amount=parseInt(document.getElementById('gift-amount').value);
   if(!username){toast('Enter a username','error');return;}
-  if(!amount||amount<1||amount>1000){toast('Amount must be 1-1000','error');return;}
+  if(!amount||amount<1||amount>20000){toast('Amount must be 1-20,000','error');return;}
   const {data:target}=await sb.from('users').select('id,username,coins').eq('username',username).single();
   if(!target){toast('User not found','error');return;}
   const newCoins=(target.coins||0)+amount;
   await sb.from('users').update({coins:newCoins}).eq('id',target.id);
-  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:target.id,message:`🪙 Admin gave you ${amount} coins!`,read:false,type:'system'});
+  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:target.id,message:`🪙 Admin gave you ${amount.toLocaleString()} coins!`,read:false,type:'system'});
   // Update display if giving to self
   if(target.id===currentUser.id){userCoins=newCoins;currentUser.coins=newCoins;updateCoinsDisplay();}
   document.getElementById('gift-username').value='';
