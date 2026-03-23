@@ -678,6 +678,23 @@ body.theme-flash{animation:themeFlash .4s ease}
             <button class="btn btn-primary btn-sm" onclick="giveCoins()">🪙 Give Coins</button>
           </div>
         </div>
+        <div class="admin-card">
+          <h3>📢 Free Promo Announcement</h3>
+          <p style="font-size:13px;color:var(--text3);margin-bottom:12px">Send a promo code to ALL users via notification!</p>
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:400px">
+            <div class="form-group" style="margin:0">
+              <label>Promo Code</label>
+              <select id="announce-promo-select">
+                <option value="">Select a code...</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Message (optional)</label>
+              <input type="text" id="announce-promo-msg" placeholder="🎁 Special gift for everyone!">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="announcePromoCode()">📢 Send to All Users</button>
+          </div>
+        </div>
         <div class="admin-card"><h3>👥 All Users</h3><div id="users-list"></div></div>
         <div class="admin-card">
           <h3>🎟️ Promo Codes</h3>
@@ -2394,8 +2411,16 @@ async function createPromoCode(){
 
 async function loadPromoCodes(){
   const list=document.getElementById('promo-list');
+  const select=document.getElementById('announce-promo-select');
   if(!list)return;
   const {data:codes}=await sb.from('promocodes').select('*').order('created_at',{ascending:false});
+  // Fill announce select
+  if(select){
+    select.innerHTML='<option value="">Select a code...</option>';
+    (codes||[]).filter(c=>c.uses<c.max_uses).forEach(c=>{
+      select.innerHTML+=`<option value="${c.code}">${c.code} (${c.uses}/${c.max_uses} uses)</option>`;
+    });
+  }
   if(!codes||!codes.length){list.innerHTML='<div style="color:var(--text3);font-size:13px">No codes yet</div>';return;}
   list.innerHTML='';
   codes.forEach(c=>{
@@ -2407,11 +2432,35 @@ async function loadPromoCodes(){
     el.innerHTML=`
       <div style="flex:1">
         <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:${expired?'var(--text3)':'var(--accent)'}">${c.code}</div>
-        <div style="font-size:11px;color:var(--text3)">${typeIcon} ${desc} · ${c.uses}/${c.max_uses} uses</div>
+        <div style="font-size:11px;color:var(--text3)">${typeIcon} ${desc} · ${c.uses}/${c.max_uses} uses ${expired?'· ❌ Expired':''}</div>
       </div>
       <button class="btn btn-danger btn-sm" style="padding:4px 8px" onclick="deletePromoCode('${c.id}')">🗑</button>`;
     list.appendChild(el);
   });
+}
+
+async function announcePromoCode(){
+  const code=document.getElementById('announce-promo-select').value;
+  const msg=document.getElementById('announce-promo-msg').value.trim()||'🎁 Special gift for everyone!';
+  if(!code){toast('Select a code first','error');return;}
+  // Get all users
+  const {data:users}=await sb.from('users').select('id').neq('is_admin',true);
+  if(!users||!users.length){toast('No users found','error');return;}
+  // Send notification to all
+  const notifs=users.map(u=>({
+    id:'n_'+Date.now()+'_'+u.id,
+    user_id:u.id,
+    message:`📢 ${msg}\n\n🎟️ Free promo code: ${code}\n\nActivate it in My Profile → Promo Code section!`,
+    read:false,
+    type:'system'
+  }));
+  // Insert in batches of 10
+  for(let i=0;i<notifs.length;i+=10){
+    await sb.from('notifications').insert(notifs.slice(i,i+10));
+    await new Promise(r=>setTimeout(r,100));
+  }
+  toast(`📢 Sent to ${users.length} users!`,'success');
+  document.getElementById('announce-promo-msg').value='';
 }
 
 async function deletePromoCode(id){
