@@ -1894,21 +1894,41 @@ function toggleAI(){
 }
 
 function formatAIMessage(text){
-  // Replace ```lang\ncode\n``` with styled code blocks
   return text.replace(/```(\w*)\n?([\s\S]*?)```/g,(match,lang,code)=>{
     const id='cb_'+Math.random().toString(36).slice(2);
     const langLabel=lang||'python';
+    const lines=code.trim().split('\n');
+    const isLong=lines.length>20;
+    const shortCode=isLong?lines.slice(0,20).join('\n'):code.trim();
     return `<div style="background:#0d0d14;border:1px solid var(--border2);border-radius:8px;margin:6px 0;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#161620;border-bottom:1px solid var(--border)">
-        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel}</span>
-        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">
-          📋 Copy
-        </button>
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel} · ${lines.length} lines</span>
+        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">📋 Copy</button>
       </div>
-      <pre id="${id}" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(code.trim())}</pre>
+      <pre id="${id}" data-full="${encodeURIComponent(code.trim())}" data-expanded="false" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(shortCode)}${isLong?'\n...':''}</pre>
+      ${isLong?`<div style="border-top:1px solid var(--border);padding:6px 12px">
+        <button id="toggle_${id}" onclick="toggleCodeBlock('${id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-family:'DM Mono',monospace;padding:0">▼ See all (${lines.length} lines)</button>
+      </div>`:''}
     </div>`;
   }).replace(/`([^`]+)`/g,'<code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--accent2)">$1</code>')
     .replace(/\n/g,'<br>');
+}
+
+function toggleCodeBlock(id){
+  const pre=document.getElementById(id);
+  const btn=document.getElementById('toggle_'+id);
+  if(!pre||!btn)return;
+  const expanded=pre.dataset.expanded==='true';
+  if(expanded){
+    const lines=decodeURIComponent(pre.dataset.full).split('\n');
+    pre.textContent=lines.slice(0,20).join('\n')+'\n...';
+    pre.dataset.expanded='false';
+    btn.textContent=`▼ See all (${lines.length} lines)`;
+  } else {
+    pre.textContent=decodeURIComponent(pre.dataset.full);
+    pre.dataset.expanded='true';
+    btn.textContent='▲ Collapse';
+  }
 }
 
 function copyCode(id){
@@ -1999,7 +2019,7 @@ async function callAI(userMessage,code,fileName){
       body:JSON.stringify({
         system_instruction:{parts:[{text:systemPrompt}]},
         contents:aiHistory,
-        generationConfig:{maxOutputTokens:1500}
+        generationConfig:{maxOutputTokens:8192}
       })
     });
     const data=await res.json();
