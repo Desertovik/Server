@@ -659,6 +659,15 @@ body.theme-flash{animation:themeFlash .4s ease}
         </div>
         <div id="all-users-list-mobile" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
       </div>
+
+      <!-- USER PROFILE VIEW -->
+      <div id="page-userprofile">
+        <div class="page-header">
+          <button class="btn btn-secondary btn-sm" onclick="history.back();navigateTo(_prevPage||'store')">← Back</button>
+          <h1 class="page-title" id="userprofile-title">👤 Profile</h1>
+        </div>
+        <div id="userprofile-content"></div>
+      </div>
       <div id="page-admin">
         <div class="page-header"><h1 class="page-title">🛡️ Admin Panel</h1></div>
         <div class="stats-row" id="admin-stats"></div>
@@ -1294,7 +1303,7 @@ function renderAccountsList(){
 
 function navigateTo(page){
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop','userprofile'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
     const mnav=document.getElementById('mnav-'+p);
@@ -2698,7 +2707,7 @@ async function openProjectDetail(id,authorName){
     <div class="comment-item">
       <div class="comment-header">
         ${renderAvatar(c.user_id,28)}
-        <div style="font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px">${commentUserMap[c.user_id]||'?'}${getBadgeHtml(commentBadgeMap[c.user_id])}</div>
+        <div style="font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer" onclick="viewUserProfile('${c.user_id}')">${commentUserMap[c.user_id]||'?'}${getBadgeHtml(commentBadgeMap[c.user_id])}</div>
         <div class="comment-time">${new Date(c.created_at).toLocaleDateString()}</div>
       </div>
       <div class="comment-text">${escHtml(c.content)}</div>
@@ -2827,7 +2836,86 @@ async function renderLeaderboard(){
     if(topProjects.length===0)projEl.innerHTML='<div style="color:var(--text3);font-size:14px;padding:10px">No ratings yet</div>';
   }
 }
-let allUsersCache=[];
+let _prevPage='store';
+
+async function viewUserProfile(userId){
+  _prevPage=document.querySelector('.page-content>div.page-active')?.id?.replace('page-','')||'store';
+  // Navigate to userprofile page
+  document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
+  document.getElementById('page-userprofile')?.classList.add('page-active');
+
+  const content=document.getElementById('userprofile-content');
+  content.innerHTML='<div style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>';
+
+  const {data:user}=await sb.from('users').select('*').eq('id',userId).single();
+  if(!user){content.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)">User not found</div>';return;}
+
+  document.getElementById('userprofile-title').textContent=`👤 ${user.username}`;
+  avatarCache[user.id]={username:user.username,avatar:user.avatar,active_frame:user.active_frame,active_badge:user.active_badge};
+
+  // Get published projects
+  const {data:projects}=await sb.from('projects').select('*').eq('owner_id',userId).eq('status','published');
+  const myProjects=projects||[];
+  const totalLikes=myProjects.reduce((a,p)=>a+Object.values(p.votes||{}).filter(v=>v==='like').length,0);
+  const totalDownloads=myProjects.reduce((a,p)=>a+(p.downloads||0),0);
+
+  // Check friendship status
+  const {data:fs}=await sb.from('friendships').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${currentUser.id})`);
+  const friendship=fs?.[0];
+  const isFriend=friendship?.status==='accepted';
+  const isPending=friendship?.status==='pending';
+
+  const badgeHtml=getBadgeHtml(user.active_badge);
+
+  content.innerHTML=`
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+      <div class="settings-card" style="text-align:center">
+        <div style="margin:0 auto 12px;width:80px;height:80px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">
+          ${renderAvatar(userId,80)}
+        </div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:4px">${user.username}${badgeHtml}</div>
+        ${user.bio?`<div style="font-size:13px;color:var(--text3);margin-bottom:12px">${user.bio}</div>`:''}
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px">
+          ${userId!==currentUser.id?`
+            ${isFriend
+              ?`<button class="btn btn-primary btn-sm" onclick="openChatWithUser('${userId}','${user.username}')">💬 Chat</button>`
+              :isPending
+              ?`<button class="btn btn-secondary btn-sm" disabled>⏳ Pending</button>`
+              :`<button class="btn btn-secondary btn-sm" onclick="sendFriendRequestById('${userId}','${user.username}',this)">＋ Add Friend</button>`
+            }
+            <button class="btn btn-secondary btn-sm" onclick="openSendCoinsToUser('${userId}','${user.username}')">🪙 Send Coins</button>
+          `:'<div style="font-size:13px;color:var(--text3)">This is you!</div>'}
+        </div>
+      </div>
+      <div>
+        <div class="stats-row" style="margin-bottom:20px">
+          <div class="stat-card"><div class="stat-value">${myProjects.length}</div><div class="stat-label">Projects</div></div>
+          <div class="stat-card"><div class="stat-value">${totalLikes}</div><div class="stat-label">Likes</div></div>
+          <div class="stat-card"><div class="stat-value">${totalDownloads}</div><div class="stat-label">Downloads</div></div>
+        </div>
+        <div class="settings-card">
+          <div class="settings-section-title">📦 Published Projects</div>
+          ${myProjects.length===0?'<div style="color:var(--text3);font-size:14px;padding:10px">No published projects yet</div>':
+            myProjects.map(p=>{
+              const likes=Object.values(p.votes||{}).filter(v=>v==='like').length;
+              const icon=p.icon?`<img src="${p.icon}" style="width:36px;height:36px;border-radius:8px;object-fit:cover">`:`<div style="width:36px;height:36px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center">🐍</div>`;
+              return `<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer" onclick="openProjectDetail('${p.id}','${user.username}')">
+                ${icon}
+                <div style="flex:1"><div style="font-weight:500">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.platform==='mobile'?'📱 Kivy':p.category||'App'} · 👍 ${likes} · ⬇ ${p.downloads||0}</div></div>
+              </div>`;
+            }).join('')
+          }
+        </div>
+      </div>
+    </div>`;
+}
+
+function openSendCoinsToUser(userId, username){
+  document.getElementById('send-coins-balance').textContent=userCoins;
+  document.getElementById('send-coins-username').value=username;
+  document.getElementById('send-coins-amount').value='';
+  openModal('modal-send-coins');
+}
 
 function switchCommunityTab(tab){
   const friendsTab=document.getElementById('community-friends-tab');
@@ -2879,13 +2967,15 @@ async function renderUsersGridTo(containerId, users){
     el.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center';
     el.innerHTML=`
       ${renderAvatar(u.id,44)}
-      <div style="font-weight:600;font-size:13px;word-break:break-all">${u.username}</div>
+      <div style="font-weight:600;font-size:13px;word-break:break-all">${u.username}${getBadgeHtml(u.active_badge)}</div>
+      ${u.bio?`<div style="font-size:11px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.bio}</div>`:''}
       ${isFriend
         ?`<button class="btn btn-primary btn-sm" style="width:100%;font-size:12px" onclick="navigateTo('community')">💬 Chat</button>`
         :isPending
         ?`<button class="btn btn-secondary btn-sm" style="width:100%;font-size:12px;opacity:.6" disabled>⏳ Pending</button>`
         :`<button class="btn btn-secondary btn-sm" style="width:100%;font-size:12px" onclick="sendFriendRequestById('${u.id}','${u.username}',this)">＋ Add</button>`
-      }`;
+      }
+      <button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px" onclick="viewUserProfile('${u.id}')">👤 View Profile</button>`;
     list.appendChild(el);
   });
 }
