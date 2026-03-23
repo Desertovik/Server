@@ -2250,19 +2250,28 @@ async function renderShop(){
     header.textContent=label;
     grid.appendChild(header);
     items.forEach(item=>{
-      const owned=userPurchases.includes(item.id);
+      const boostCharges=item.type==='boost'?userPurchases.filter(p=>p===item.id).length:0;
+      const owned=item.type==='boost'?boostCharges>0:userPurchases.includes(item.id);
       const isActive=currentUser.active_badge===item.id||currentUser.active_frame===item.id;
       const el=document.createElement('div');
       el.className='shop-item'+(owned?' owned':'')+(isActive?' active-item':'');
       el.innerHTML=`
-        ${owned?`<span class="shop-badge" style="background:rgba(61,220,151,.2);color:var(--green)">✓ Owned</span>`:''}
+        ${owned&&item.type!=='boost'?`<span class="shop-badge" style="background:rgba(61,220,151,.2);color:var(--green)">✓ Owned</span>`:''}
+        ${item.type==='boost'&&boostCharges>0?`<span class="shop-badge" style="background:rgba(255,209,102,.2);color:var(--yellow)">⚡ ${boostCharges}/3</span>`:''}
         <div class="shop-item-icon">${item.icon}</div>
         <div class="shop-item-name">${item.name}</div>
         <div class="shop-item-desc">${item.desc}</div>
-        ${owned
-          ?`<button class="btn btn-sm" style="width:100%;background:${isActive?'rgba(255,209,102,.2)':'var(--bg3)'};color:${isActive?'var(--yellow)':'var(--text2)'};border:1px solid ${isActive?'rgba(255,209,102,.4)':'var(--border)'}" onclick="toggleShopItem('${item.id}','${item.type}')">${isActive?'✓ Active':'Activate'}</button>`
-          :`<div class="shop-item-price">🪙 ${item.price}</div>
-           <button class="btn btn-primary btn-sm" style="width:100%" onclick="buyItem('${item.id}')">Buy</button>`
+        ${item.type==='boost'
+          ?boostCharges>0
+            ?`<div style="font-size:12px;color:var(--text3);margin-bottom:4px">${boostCharges} charge${boostCharges>1?'s':''} remaining</div>
+              <button class="btn btn-primary btn-sm" style="width:100%" onclick="toggleShopItem('${item.id}','boost')">🚀 Use Boost</button>
+              ${boostCharges<3?`<button class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;font-size:12px" onclick="buyItem('${item.id}')">+1 Charge (🪙 ${item.price})</button>`:'<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px">Max 3 charges</div>'}`
+            :`<div class="shop-item-price">🪙 ${item.price}</div>
+              <button class="btn btn-primary btn-sm" style="width:100%" onclick="buyItem('${item.id}')">Buy</button>`
+          :owned
+            ?`<button class="btn btn-sm" style="width:100%;background:${isActive?'rgba(255,209,102,.2)':'var(--bg3)'};color:${isActive?'var(--yellow)':'var(--text2)'};border:1px solid ${isActive?'rgba(255,209,102,.4)':'var(--border)'}" onclick="toggleShopItem('${item.id}','${item.type}')">${isActive?'✓ Active':'Activate'}</button>`
+            :`<div class="shop-item-price">🪙 ${item.price}</div>
+              <button class="btn btn-primary btn-sm" style="width:100%" onclick="buyItem('${item.id}')">Buy</button>`
         }`;
       grid.appendChild(el);
     });
@@ -2272,18 +2281,30 @@ async function renderShop(){
 async function buyItem(itemId){
   const item=SHOP_ITEMS.find(i=>i.id===itemId);
   if(!item)return;
+  // Boost is special - can buy up to 3 times
+  if(item.type==='boost'){
+    const boostCount=userPurchases.filter(p=>p===itemId).length;
+    if(boostCount>=3){toast('❌ Max 3 boosts purchased!','error');return;}
+    if(userCoins<item.price){toast(`Not enough coins! Need ${item.price} 🪙`,'error');return;}
+    userCoins-=item.price;
+    await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+    currentUser.coins=userCoins;
+    await sb.from('purchases').insert({id:`pur_${currentUser.id}_${itemId}_${Date.now()}`,user_id:currentUser.id,item_id:itemId});
+    userPurchases.push(itemId);
+    updateCoinsDisplay();
+    toast(`✅ Boost purchased! You have ${userPurchases.filter(p=>p===itemId).length}/3 boosts`,'success');
+    renderShop();
+    return;
+  }
   if(userPurchases.includes(itemId)){toast('Already owned!','info');return;}
   if(userCoins<item.price){toast(`Not enough coins! Need ${item.price} 🪙`,'error');return;}
-  // Deduct coins
   userCoins-=item.price;
   await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
   currentUser.coins=userCoins;
-  // Save purchase
   await sb.from('purchases').insert({id:`pur_${currentUser.id}_${itemId}`,user_id:currentUser.id,item_id:itemId});
   userPurchases.push(itemId);
   updateCoinsDisplay();
   toast(`✅ Bought ${item.name}!`,'success');
-  // Auto activate
   await toggleShopItem(itemId,item.type);
   renderShop();
 }
@@ -2308,13 +2329,19 @@ async function toggleShopItem(itemId,type){
     appSettings.theme=itemId;saveSettings();applySettings();renderThemeGrid();
     toast(`🎨 ${item.name} activated!`,'success');
   } else if(type==='boost'){
-    // Boost user's latest published project
+    const boostCharges=userPurchases.filter(p=>p===itemId).length;
+    if(boostCharges===0){toast('No boost charges!','error');return;}
+    // Remove one charge
+    const {data:purchases}=await sb.from('purchases').select('id').eq('user_id',currentUser.id).eq('item_id',itemId).limit(1);
+    if(purchases&&purchases.length){
+      await sb.from('purchases').delete().eq('id',purchases[0].id);
+      userPurchases.splice(userPurchases.indexOf(itemId),1);
+    }
+    // Boost latest published project
     const {data:projects}=await sb.from('projects').select('id,name').eq('owner_id',currentUser.id).eq('status','published').order('published_at',{ascending:false}).limit(1);
     if(!projects||!projects.length){toast('No published projects to boost!','error');return;}
-    const boostedUntil=new Date(Date.now()+24*60*60*1000).toISOString();
     await sb.from('projects').update({pinned:true}).eq('id',projects[0].id);
-    await sb.from('users').update({boosted_until:boostedUntil}).eq('id',currentUser.id);
-    toast(`🚀 "${projects[0].name}" boosted for 24h!`,'success');
+    toast(`🚀 "${projects[0].name}" boosted! ${boostCharges-1} charge${boostCharges-1!==1?'s':''} remaining`,'success');
     renderStore();
   }
   renderShop();
