@@ -1393,14 +1393,15 @@ const avatarCache={};
 async function getAvatars(userIds){
   const missing=userIds.filter(id=>!avatarCache[id]);
   if(missing.length>0){
-    const {data:users}=await sb.from('users').select('id,username,avatar').in('id',missing);
-    (users||[]).forEach(u=>{avatarCache[u.id]={username:u.username,avatar:u.avatar};});
+    const {data:users}=await sb.from('users').select('id,username,avatar,active_frame,active_badge').in('id',missing);
+    (users||[]).forEach(u=>{avatarCache[u.id]={username:u.username,avatar:u.avatar,active_frame:u.active_frame,active_badge:u.active_badge};});
   }
 }
 
 function renderAvatar(userId,size=28){
   const u=avatarCache[userId];
-  const frameStyle=userId===currentUser?.id&&currentUser?.active_frame?getFrameStyle(currentUser.active_frame):'';
+  const frameId=userId===currentUser?.id?currentUser?.active_frame:u?.active_frame;
+  const frameStyle=frameId?getFrameStyle(frameId):'';
   const borderCss=frameStyle?`border:${frameStyle}`:'';
   if(!u)return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${size*0.45}px;flex-shrink:0;${borderCss}">?</div>`;
   if(u.avatar)return `<img src="${u.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;${borderCss}">`;
@@ -2794,7 +2795,7 @@ async function renderUsersGridTo(containerId, users){
     fsMap[otherId]=f.status;
   });
   users.filter(u=>u.id!==currentUser.id).forEach(u=>{
-    avatarCache[u.id]={username:u.username,avatar:u.avatar};
+    avatarCache[u.id]={username:u.username,avatar:u.avatar,active_frame:u.active_frame,active_badge:u.active_badge};
     const fs=fsMap[u.id];
     const isFriend=fs==='accepted';
     const isPending=fs==='pending';
@@ -2862,9 +2863,8 @@ async function loadFriends(){
   const friendIds=[...(sent||[]).map(f=>f.receiver_id),...(received||[]).map(f=>f.sender_id)].filter(id=>id!==currentUser.id);
   const list=document.getElementById('friends-list');
   if(friendIds.length===0){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No friends yet 👻<br><br>Search for a username above!</div>';return;}
-  const {data:friends}=await sb.from('users').select('id,username,avatar').in('id',friendIds);
-  // Cache avatars
-  (friends||[]).forEach(u=>avatarCache[u.id]={username:u.username,avatar:u.avatar});
+  const {data:friends}=await sb.from('users').select('id,username,avatar,active_frame,active_badge').in('id',friendIds);
+  (friends||[]).forEach(u=>avatarCache[u.id]={username:u.username,avatar:u.avatar,active_frame:u.active_frame,active_badge:u.active_badge});
   list.innerHTML='';
   for(const f of (friends||[])){
     const {data:unread}=await sb.from('messages').select('id').eq('sender_id',f.id).eq('receiver_id',currentUser.id).eq('read',false);
