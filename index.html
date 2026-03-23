@@ -517,6 +517,7 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="sidebar-item" id="nav-apps" onclick="navigateTo('apps')"><span class="icon">📦</span> Apps</div>
         <div class="sidebar-item" id="nav-mobile" onclick="navigateTo('mobile')"><span class="icon">📱</span> Mobile (Kivy)</div>
         <div class="sidebar-item" id="nav-leaderboard" onclick="navigateTo('leaderboard')"><span class="icon">🏆</span> Leaderboard</div>
+        <div class="sidebar-item" id="nav-stats" onclick="navigateTo('stats')"><span class="icon">📊</span> Statistics</div>
         <div class="sidebar-item" id="nav-shop" onclick="navigateTo('shop')"><span class="icon">🛒</span> Shop <span id="coins-sidebar" style="margin-left:auto;background:rgba(255,209,102,.15);color:var(--yellow);border-radius:30px;padding:2px 8px;font-size:11px;font-family:'DM Mono',monospace">🪙 0</span></div>
       </div>
       <div class="sidebar-section">
@@ -643,9 +644,17 @@ body.theme-flash{animation:themeFlash .4s ease}
               <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
                 <div style="text-align:center;color:var(--text3);font-size:13px;margin:auto">👆 Select a friend to start chatting</div>
               </div>
-              <div id="chat-input-area" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px">
-                <input type="text" id="chat-input" placeholder="Type a message..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:30px;padding:10px 16px;color:var(--text);font-size:14px;outline:none" onkeydown="if(event.key==='Enter')sendMessage()" disabled>
-                <button class="btn btn-primary btn-sm" onclick="sendMessage()" id="btn-send-msg" disabled style="border-radius:50%;width:38px;height:38px;padding:0;justify-content:center">➤</button>
+              <div id="chat-input-area" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+                <div id="chat-media-preview" style="display:none;position:relative">
+                  <img id="chat-media-img" style="max-height:120px;border-radius:8px;border:1px solid var(--border);display:block">
+                  <button onclick="clearChatMedia()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">✕</button>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <button onclick="document.getElementById('chat-media-input').click()" style="background:var(--bg3);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="Send image/video">🖼️</button>
+                  <input type="file" id="chat-media-input" accept="image/*,video/*" style="display:none" onchange="handleChatMedia(event)">
+                  <input type="text" id="chat-input" placeholder="Type a message..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:30px;padding:10px 16px;color:var(--text);font-size:14px;outline:none" onkeydown="if(event.key==='Enter')sendMessage()" disabled>
+                  <button class="btn btn-primary btn-sm" onclick="sendMessage()" id="btn-send-msg" disabled style="border-radius:50%;width:38px;height:38px;padding:0;justify-content:center">➤</button>
+                </div>
               </div>
             </div>
           </div>
@@ -923,7 +932,10 @@ body.theme-flash{animation:themeFlash .4s ease}
           </div>
         </div>
       </div>
-      <div id="page-leaderboard">
+      <div id="page-stats">
+        <div class="page-header"><h1 class="page-title">📊 Platform Statistics</h1></div>
+        <div id="stats-content"><div style="text-align:center;padding:60px"><div class="loading-spinner"></div></div></div>
+      </div>
         <div class="page-header"><h1 class="page-title">🏆 Leaderboard</h1></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div class="settings-card">
@@ -1341,7 +1353,7 @@ function renderAccountsList(){
 
 function navigateTo(page){
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop','userprofile'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop','userprofile','stats'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
     const mnav=document.getElementById('mnav-'+p);
@@ -1390,6 +1402,7 @@ function navigateTo(page){
   else if(page==='allusers')renderAllUsersMobile();
   else if(page==='profile')renderProfile();
   else if(page==='leaderboard')renderLeaderboard();
+  else if(page==='stats')renderStats();
   else if(page==='shop')renderShop();
 }
 
@@ -2718,6 +2731,101 @@ async function activatePromoCode(){
   }
   document.getElementById('promo-activate-input').value='';
 }
+// SHARE PROJECT
+function shareProject(id,name){
+  const url=`https://desertovik.github.io/Server/?project=${id}`;
+  if(navigator.share){
+    navigator.share({title:name,text:`Check out "${name}" on DesertStore!`,url});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>toast('🔗 Link copied!','success'));
+  }
+}
+
+// PLATFORM STATISTICS
+async function renderStats(){
+  const el=document.getElementById('stats-content');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:60px"><div class="loading-spinner"></div></div>';
+  const [{data:projects},{data:users},{data:comments},{data:ratings}]=await Promise.all([
+    sb.from('projects').select('*'),
+    sb.from('users').select('*').neq('is_admin',true),
+    sb.from('comments').select('id'),
+    sb.from('ratings').select('stars')
+  ]);
+  const allP=projects||[];
+  const published=allP.filter(p=>p.status==='published'&&p.platform!=='mobile');
+  const totalDownloads=published.reduce((a,p)=>a+(p.downloads||0),0);
+  const totalLikes=published.reduce((a,p)=>a+Object.values(p.votes||{}).filter(v=>v==='like').length,0);
+  const avgRating=ratings?.length?(ratings.reduce((a,r)=>a+r.stars,0)/ratings.length).toFixed(1):0;
+  const topProject=[...published].sort((a,b)=>(b.downloads||0)-(a.downloads||0))[0];
+  const mostLiked=[...published].sort((a,b)=>Object.values(b.votes||{}).filter(v=>v==='like').length-Object.values(a.votes||{}).filter(v=>v==='like').length)[0];
+  el.innerHTML=`
+    <div class="stats-row" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-value">${(users||[]).length}</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card"><div class="stat-value">${published.length}</div><div class="stat-label">Published</div></div>
+      <div class="stat-card"><div class="stat-value">${totalDownloads}</div><div class="stat-label">Downloads</div></div>
+      <div class="stat-card"><div class="stat-value">${totalLikes}</div><div class="stat-label">Likes</div></div>
+      <div class="stat-card"><div class="stat-value">${(comments||[]).length}</div><div class="stat-label">Comments</div></div>
+      <div class="stat-card"><div class="stat-value">⭐ ${avgRating}</div><div class="stat-label">Avg Rating</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="settings-card">
+        <div class="settings-section-title">📦 Projects by Category</div>
+        ${['Game','App'].map(cat=>{
+          const count=published.filter(p=>p.category===cat).length;
+          const icon=cat==='Game'?'🎮':'📦';
+          const pct=published.length?Math.round(count/published.length*100):0;
+          return `<div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>${icon} ${cat}</span><span style="color:var(--text3)">${count} (${pct}%)</span></div>
+            <div style="background:var(--bg3);border-radius:30px;height:8px"><div style="background:var(--accent);height:8px;border-radius:30px;width:${pct}%"></div></div>
+          </div>`;
+        }).join('')}
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>📱 Mobile</span><span style="color:var(--text3)">${allP.filter(p=>p.platform==='mobile').length}</span></div>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-section-title">🏆 Records</div>
+        ${topProject?`<div style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm)">
+          <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:4px">MOST DOWNLOADED</div>
+          <div style="font-weight:600">${topProject.name}</div>
+          <div style="font-size:12px;color:var(--text3)">⬇ ${topProject.downloads||0} downloads</div>
+        </div>`:''}
+        ${mostLiked?`<div style="padding:10px;background:var(--bg3);border-radius:var(--radius-sm)">
+          <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:4px">MOST LIKED</div>
+          <div style="font-weight:600">${mostLiked.name}</div>
+          <div style="font-size:12px;color:var(--text3)">👍 ${Object.values(mostLiked.votes||{}).filter(v=>v==='like').length} likes</div>
+        </div>`:''}
+      </div>
+    </div>`;
+}
+
+// CHAT MEDIA
+let chatMediaData=null;
+let chatMediaType=null;
+
+function handleChatMedia(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('Max 5MB','error');return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    chatMediaData=ev.target.result;
+    chatMediaType=file.type.startsWith('video')?'video':'image';
+    const preview=document.getElementById('chat-media-preview');
+    const img=document.getElementById('chat-media-img');
+    if(preview&&img){img.src=chatMediaData;preview.style.display='';}
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+function clearChatMedia(){
+  chatMediaData=null;chatMediaType=null;
+  const preview=document.getElementById('chat-media-preview');
+  if(preview)preview.style.display='none';
+}
+
 async function giveCoins(){
   const username=document.getElementById('gift-username').value.trim();
   const amount=parseInt(document.getElementById('gift-amount').value);
@@ -2866,6 +2974,7 @@ async function openProjectDetail(id,authorName){
           <button class="vote-btn like ${myVote==='like'?'liked':''}" onclick="voteProject('${p.id}','like');closeModal('modal-project-detail')">👍 ${likes}</button>
           <button class="vote-btn dislike ${myVote==='dislike'?'disliked':''}" onclick="voteProject('${p.id}','dislike');closeModal('modal-project-detail')">👎 ${dislikes}</button>
         </div>
+        <button class="btn btn-secondary btn-sm" onclick="shareProject('${p.id}','${p.name}')">🔗 Share</button>
         <button class="btn btn-primary btn-sm" onclick="downloadProject('${p.id}','${p.name}')">⬇ Download</button>
       </div>
     </div>`;
@@ -3288,7 +3397,11 @@ async function loadMessages(){
   msgs.forEach(m=>{
     const mine=m.sender_id===currentUser.id;
     const wrap=document.createElement('div');wrap.className='msg-wrap '+(mine?'mine':'theirs');
-    wrap.innerHTML=`<div class="msg-bubble ${mine?'mine':'theirs'}">${escHtml(m.content)}</div>
+    const mediaHtml=m.media_url?m.media_type==='video'
+      ?`<video src="${m.media_url}" controls style="max-width:220px;border-radius:10px;display:block;margin-bottom:${m.content?'6px':'0'}"></video>`
+      :`<img src="${m.media_url}" style="max-width:220px;border-radius:10px;display:block;cursor:pointer;margin-bottom:${m.content?'6px':'0'}" onclick="window.open('${m.media_url}','_blank')">`
+      :'';
+    wrap.innerHTML=`<div class="msg-bubble ${mine?'mine':'theirs'}">${mediaHtml}${m.content?escHtml(m.content):''}</div>
       <div class="msg-time">${new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`;
     container.appendChild(wrap);
   });
@@ -3299,14 +3412,16 @@ async function loadMessages(){
 async function sendMessage(){
   const input=document.getElementById('chat-input');
   const content=input.value.trim();
-  if(!content||!activeChatFriend)return;
+  if(!content&&!chatMediaData||!activeChatFriend)return;
   input.value='';
-  await sb.from('messages').insert({id:'m_'+Date.now(),sender_id:currentUser.id,receiver_id:activeChatFriend.id,content,read:false});
+  const msg={id:'m_'+Date.now(),sender_id:currentUser.id,receiver_id:activeChatFriend.id,content:content||'',read:false};
+  if(chatMediaData){msg.media_url=chatMediaData;msg.media_type=chatMediaType;}
+  clearChatMedia();
+  await sb.from('messages').insert(msg);
   await loadMessages();
-  // Notify only if they have unread from this convo
   const {data:unread}=await sb.from('messages').select('id').eq('sender_id',currentUser.id).eq('receiver_id',activeChatFriend.id).eq('read',false);
   if((unread||[]).length===1){
-    await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:activeChatFriend.id,message:`💬 ${currentUser.username}: ${content.slice(0,60)}${content.length>60?'...':''}`,read:false});
+    await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:activeChatFriend.id,message:`💬 ${currentUser.username}: ${content?content.slice(0,60):'📷 Media'}`,read:false});
   }
 }
 
