@@ -289,7 +289,17 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   /* Custom theme grid */
   #page-settings [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important}
 }
-/* BOXES */
+/* MOBILE MENU */
+.mobile-menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;backdrop-filter:blur(4px)}
+.mobile-menu-overlay.active{display:block}
+.mobile-menu-sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-radius:20px 20px 0 0;padding:20px;z-index:1001;transform:translateY(100%);transition:transform .3s ease}
+.mobile-menu-sheet.active{transform:translateY(0)}
+.mobile-menu-handle{width:40px;height:4px;background:var(--border);border-radius:30px;margin:0 auto 20px}
+.mobile-menu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mobile-menu-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .2s;text-align:center}
+.mobile-menu-btn:active{transform:scale(.95);background:var(--bg4)}
+.mobile-menu-btn-icon{font-size:24px}
+.mobile-menu-btn-label{font-size:11px;color:var(--text2);font-weight:500}
 @keyframes boxShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}
 @keyframes boxOpen{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(0);opacity:0}}
 @keyframes rewardPop{0%{transform:scale(0) rotate(-10deg);opacity:0}70%{transform:scale(1.2) rotate(5deg)}100%{transform:scale(1) rotate(0);opacity:1}}
@@ -508,7 +518,7 @@ body.theme-flash{animation:themeFlash .4s ease}
       <button class="btn btn-secondary btn-sm" id="btn-install" style="display:none" onclick="installPWA()">📲 Install App</button>
       <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">＋ Create Project</button>
       <div style="position:relative" id="user-avatar-wrap">
-        <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">U</div>
+        <div class="user-avatar" id="user-avatar-btn" onclick="window.innerWidth<=768?toggleMobileMenu():toggleUserMenu()">U</div>
         <div class="user-menu" id="user-menu">
           <div class="user-menu-header" id="user-menu-name">username</div>
           <div class="user-menu-item" onclick="navigateTo('profile');closeUserMenu()">👤 My Profile</div>
@@ -561,8 +571,9 @@ body.theme-flash{animation:themeFlash .4s ease}
       <div class="mobile-nav-item active" id="mnav-store" onclick="navigateTo('store')">
         <span class="mn-icon">🏠</span><span class="mn-label">Store</span>
       </div>
-      <div class="mobile-nav-item" id="mnav-shop" onclick="navigateTo('shop')">
-        <span class="mn-icon">🛒</span><span class="mn-label">Shop</span>
+      <div class="mobile-nav-item" id="mnav-boxes" onclick="navigateTo('boxes')">
+        <span class="mn-icon">🎁</span><span class="mn-label">Boxes</span>
+        <span class="mobile-nav-badge" id="boxes-badge-mobile" style="display:none">0</span>
       </div>
       <div class="mobile-nav-item" id="mnav-notifications" onclick="navigateTo('notifications')">
         <span class="mn-icon">🔔</span><span class="mn-label">Alerts</span>
@@ -1126,6 +1137,44 @@ body.theme-flash{animation:themeFlash .4s ease}
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
       <button class="btn btn-secondary" onclick="closeModal('modal-send-coins')">Cancel</button>
       <button class="btn btn-primary" onclick="sendCoins()">🪙 Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+<div class="mobile-menu-sheet" id="mobile-menu-sheet">
+  <div class="mobile-menu-handle"></div>
+  <div style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:14px">ALL PAGES</div>
+  <div class="mobile-menu-grid">
+    <div class="mobile-menu-btn" onclick="navigateTo('profile');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">👤</span><span class="mobile-menu-btn-label">Profile</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('my-projects');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">📁</span><span class="mobile-menu-btn-label">My Projects</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('shop');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">🛒</span><span class="mobile-menu-btn-label">Shop</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('leaderboard');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">🏆</span><span class="mobile-menu-btn-label">Leaderboard</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('stats');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">📊</span><span class="mobile-menu-btn-label">Statistics</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('allusers');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">🌍</span><span class="mobile-menu-btn-label">All Users</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('mobile');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">📱</span><span class="mobile-menu-btn-label">Kivy</span>
+    </div>
+    <div class="mobile-menu-btn" id="mobile-menu-admin" style="display:none" onclick="navigateTo('admin');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">🛡️</span><span class="mobile-menu-btn-label">Admin</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="navigateTo('settings');closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">⚙️</span><span class="mobile-menu-btn-label">Settings</span>
+    </div>
+    <div class="mobile-menu-btn" onclick="logout();closeMobileMenu()">
+      <span class="mobile-menu-btn-icon">🚪</span><span class="mobile-menu-btn-label">Logout</span>
     </div>
   </div>
 </div>
@@ -2931,8 +2980,10 @@ async function updateBoxesBadge(){
   if(!currentUser)return;
   const {data}=await sb.from('boxes').select('id').eq('user_id',currentUser.id).eq('opened',false);
   const count=(data||[]).length;
-  const badge=document.getElementById('boxes-badge');
-  if(badge){badge.style.display=count>0?'':'none';badge.textContent=count;}
+  ['boxes-badge','boxes-badge-mobile'].forEach(id=>{
+    const badge=document.getElementById(id);
+    if(badge){badge.style.display=count>0?'':'none';badge.textContent=count;}
+  });
 }
 function shareProject(id,name){
   const url=`https://desertovik.github.io/Server/?project=${id}`;
@@ -3636,6 +3687,22 @@ async function updateMsgBadge(){
 
 function openModal(id){document.getElementById(id).classList.add('active');}
 function closeModal(id){document.getElementById(id).classList.remove('active');}
+function toggleMobileMenu(){
+  const overlay=document.getElementById('mobile-menu-overlay');
+  const sheet=document.getElementById('mobile-menu-sheet');
+  const adminBtn=document.getElementById('mobile-menu-admin');
+  if(adminBtn)adminBtn.style.display=currentUser?.is_admin?'':'none';
+  overlay.classList.add('active');
+  setTimeout(()=>sheet.classList.add('active'),10);
+}
+
+function closeMobileMenu(){
+  const overlay=document.getElementById('mobile-menu-overlay');
+  const sheet=document.getElementById('mobile-menu-sheet');
+  sheet.classList.remove('active');
+  setTimeout(()=>overlay.classList.remove('active'),300);
+}
+
 function toggleUserMenu(){document.getElementById('user-menu').classList.toggle('open');}
 function closeUserMenu(){document.getElementById('user-menu').classList.remove('open');}
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
