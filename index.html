@@ -1275,8 +1275,11 @@ async function startRegister(){
 async function verifyCode(){
   if(document.getElementById('verify-code-input').value.trim()!==pendingCode){toast('Wrong code','error');return;}
   const password=generatePassword(),id='u_'+Date.now();
-  const {error}=await sb.from('users').insert({id,username:pendingReg.username,email:pendingReg.email,password,is_admin:false});
+  const {error}=await sb.from('users').insert({id,username:pendingReg.username,email:pendingReg.email,password,is_admin:false,coins:30});
   if(error){toast('Error creating account','error');return;}
+  // Welcome bonus: 30 coins + 1 box
+  await sb.from('boxes').insert({id:'box_welcome_'+id,user_id:id,opened:false});
+  await sb.from('notifications').insert({id:'n_welcome_'+id,user_id:id,message:`🎉 Welcome to DesertStore!\n\n🎁 You received a welcome bonus:\n• 🪙 30 coins\n• 🎁 1 Mystery Box\n\nOpen your box in My Boxes tab!`,read:false,type:'system'});
   document.getElementById('show-password').textContent=password;
   ['panel-login','panel-register','panel-verify','panel-done'].forEach(p=>document.getElementById(p).classList.remove('active'));
   document.getElementById('panel-done').classList.add('active');toast('Account created!','success');
