@@ -289,7 +289,16 @@ body.light-theme{--bg:#f5f5f8;--bg2:#ffffff;--bg3:#f0f0f5;--bg4:#e8e8f0;--border
   /* Custom theme grid */
   #page-settings [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important}
 }
-/* DESERT KING */
+/* BOXES */
+@keyframes boxShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(5deg)}}
+@keyframes boxOpen{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(0);opacity:0}}
+@keyframes rewardPop{0%{transform:scale(0) rotate(-10deg);opacity:0}70%{transform:scale(1.2) rotate(5deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.box-card{background:var(--bg2);border:2px solid var(--accent);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.box-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(124,92,252,.3)}
+.box-card.opened{border-color:var(--border);opacity:.6;cursor:default}
+.box-card.opened:hover{transform:none;box-shadow:none}
+.box-icon{font-size:48px;animation:boxShake 2s ease infinite}
+.box-card.opened .box-icon{animation:none;font-size:36px}
 @keyframes desertKingGlow{0%{box-shadow:0 0 6px #f4845f,0 0 12px rgba(244,132,95,.4)}50%{box-shadow:0 0 14px #ffd166,0 0 28px rgba(255,209,102,.6)}100%{box-shadow:0 0 6px #f4845f,0 0 12px rgba(244,132,95,.4)}}
 @keyframes desertKingText{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes camelFloat{0%{transform:translateY(0) rotate(-10deg);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translateY(-50px) rotate(10deg);opacity:0}}
@@ -528,6 +537,7 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div class="sidebar-item" id="nav-leaderboard" onclick="navigateTo('leaderboard')"><span class="icon">🏆</span> Leaderboard</div>
         <div class="sidebar-item" id="nav-stats" onclick="navigateTo('stats')"><span class="icon">📊</span> Statistics</div>
         <div class="sidebar-item" id="nav-shop" onclick="navigateTo('shop')"><span class="icon">🛒</span> Shop <span id="coins-sidebar" style="margin-left:auto;background:rgba(255,209,102,.15);color:var(--yellow);border-radius:30px;padding:2px 8px;font-size:11px;font-family:'DM Mono',monospace">🪙 0</span></div>
+        <div class="sidebar-item" id="nav-boxes" onclick="navigateTo('boxes')"><span class="icon">🎁</span> My Boxes <span id="boxes-badge" style="display:none;margin-left:auto;background:rgba(124,92,252,.2);color:var(--accent);border-radius:30px;padding:2px 8px;font-size:11px;font-family:'DM Mono',monospace">0</span></div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">My Stuff</div>
@@ -686,7 +696,21 @@ body.theme-flash{animation:themeFlash .4s ease}
         <div id="all-users-list-mobile" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
       </div>
 
-      <!-- USER PROFILE VIEW -->
+      <div id="page-boxes">
+        <div class="page-header"><h1 class="page-title">🎁 My Boxes</h1></div>
+        <div class="settings-card" style="margin-bottom:20px">
+          <div class="settings-section-title">📦 What's inside?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+            <div class="coin-earn-item">🎨 Exclusive Theme <span>possible</span></div>
+            <div class="coin-earn-item">👑 Badge <span>possible</span></div>
+            <div class="coin-earn-item">🏜️ Desert King <span style="color:var(--red)">30%</span></div>
+            <div class="coin-earn-item">🚀 Project Boost <span style="color:var(--accent)">20%</span></div>
+            <div class="coin-earn-item">🪙 10-60 Coins <span>always possible</span></div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="buyBox()">🎁 Buy Box — 100 🪙</button>
+        </div>
+        <div id="boxes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px"></div>
+      </div>
       <div id="page-userprofile">
         <div class="page-header">
           <button class="btn btn-secondary btn-sm" onclick="history.back();navigateTo(_prevPage||'store')">← Back</button>
@@ -757,6 +781,7 @@ body.theme-flash{animation:themeFlash .4s ease}
                   <label>Type</label>
                   <select id="promo-type" onchange="updatePromoTypeUI()">
                     <option value="coins">🪙 Coins</option>
+                    <option value="box">🎁 Mystery Box</option>
                     <option value="theme">🎨 Exclusive Theme</option>
                     <option value="particle">✨ Exclusive Particles</option>
                     <option value="badge">👑 Badge</option>
@@ -1105,6 +1130,17 @@ body.theme-flash{animation:themeFlash .4s ease}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-box-open">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div id="box-open-content">
+      <div style="font-size:80px;margin-bottom:16px" id="box-open-icon">🎁</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px" id="box-open-title">Opening...</div>
+      <div style="font-size:14px;color:var(--text2)" id="box-open-desc"></div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px;width:100%" id="box-open-btn" onclick="closeModal('modal-box-open')" style="display:none">🎉 Awesome!</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-upload">
   <div class="modal" style="max-width:520px">
     <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
@@ -1319,7 +1355,7 @@ function showMainView(){
   const mnavAdmin=document.getElementById('mnav-admin');
   if(mnavAdmin)mnavAdmin.style.display=currentUser.is_admin?'flex':'none';
   updateAvatarBtn();
-  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();loadCoins();navigateTo('store');
+  renderAccountsList();updateNotifBadge();updateMsgBadge();startOnlineTracking();loadCoins();updateBoxesBadge();navigateTo('store');
 }
 
 function updateAvatarBtn(){
@@ -1359,7 +1395,7 @@ function removeAccount(id){
 
 function navigateTo(page){
   document.querySelectorAll('.page-content>div').forEach(el=>el.classList.remove('page-active'));
-  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop','userprofile','stats'].forEach(p=>{
+  ['store','my-projects','admin','notifications','settings','community','profile','leaderboard','allusers','shop','userprofile','stats','boxes'].forEach(p=>{
     const nav=document.getElementById('nav-'+p);
     if(nav)nav.classList.remove('active');
     const mnav=document.getElementById('mnav-'+p);
@@ -1410,6 +1446,7 @@ function navigateTo(page){
   else if(page==='leaderboard')renderLeaderboard();
   else if(page==='stats')renderStats();
   else if(page==='shop')renderShop();
+  else if(page==='boxes'){renderBoxes();updateBoxesBadge();}
 }
 
 function setFilter(val,el){storeFilter=val;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');const hero=document.getElementById('hero-section');if(hero)hero.style.display=val==='all'?'':'none';renderStore();}
@@ -2639,9 +2676,11 @@ function updatePromoTypeUI(){
   const itemSelect=document.getElementById('promo-item-select');
   if(type==='coins'){
     coinsWrap.style.display='';itemWrap.style.display='none';
+  } else if(type==='box'){
+    coinsWrap.style.display='none';itemWrap.style.display='';
+    itemSelect.innerHTML='<option value="1">1 Box</option><option value="2">2 Boxes</option><option value="3">3 Boxes</option><option value="5">5 Boxes</option>';
   } else {
     coinsWrap.style.display='none';itemWrap.style.display='';
-    // Populate items
     const filtered=SHOP_ITEMS.filter(i=>i.type===type);
     itemSelect.innerHTML=filtered.map(i=>`<option value="${i.id}">${i.icon} ${i.name}</option>`).join('');
   }
@@ -2750,6 +2789,14 @@ async function activatePromoCode(){
     await sb.from('users').update({coins:newCoins}).eq('id',currentUser.id);
     userCoins=newCoins;currentUser.coins=newCoins;updateCoinsDisplay();
     toast(`🎉 Code activated! +${promo.coins} 🪙 coins!`,'success');
+  } else if(promo.type==='box'){
+    const count=parseInt(promo.value)||1;
+    for(let i=0;i<count;i++){
+      await sb.from('boxes').insert({id:'box_'+Date.now()+'_'+i,user_id:currentUser.id,opened:false});
+      await new Promise(r=>setTimeout(r,50));
+    }
+    updateBoxesBadge();
+    toast(`🎉 Got ${count} Mystery Box${count>1?'es':''}! Open in My Boxes!`,'success');
   } else {
     // Give item
     const exists=await sb.from('purchases').select('id').eq('user_id',currentUser.id).eq('item_id',promo.value).single();
@@ -2762,7 +2809,128 @@ async function activatePromoCode(){
   }
   document.getElementById('promo-activate-input').value='';
 }
-// SHARE PROJECT
+// BOXES
+async function buyBox(){
+  if(userCoins<100){toast('Not enough coins! Need 100 🪙','error');return;}
+  userCoins-=100;
+  await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+  currentUser.coins=userCoins;
+  updateCoinsDisplay();
+  const boxId='box_'+Date.now();
+  await sb.from('boxes').insert({id:boxId,user_id:currentUser.id,opened:false});
+  toast('🎁 Box purchased!','success');
+  renderBoxes();
+  updateBoxesBadge();
+}
+
+async function giveBox(userId){
+  // Admin gives box to user
+  const boxId='box_'+Date.now();
+  await sb.from('boxes').insert({id:boxId,user_id:userId,opened:false});
+  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:userId,message:`🎁 Admin gave you a Mystery Box! Open it in My Boxes!`,read:false,type:'system'});
+}
+
+function rollBoxReward(){
+  const rand=Math.random()*100;
+  // Desert King badge 30%
+  if(rand<30) return {type:'badge',value:'badge_desert',icon:'🏜️',name:'Desert King Badge!',desc:'You got the exclusive Desert King badge!'};
+  // Boost 20%
+  if(rand<50) return {type:'boost',value:'boost_24h',icon:'🚀',name:'Project Boost!',desc:'Your project will be pinned to top for 24 hours!'};
+  // Theme (random unowned)
+  if(rand<65){
+    const themes=SHOP_ITEMS.filter(i=>i.type==='theme'&&!userPurchases.includes(i.id));
+    if(themes.length){
+      const t=themes[Math.floor(Math.random()*themes.length)];
+      return {type:'theme',value:t.id,icon:t.icon,name:t.name+'!',desc:'You got an exclusive theme!'};
+    }
+  }
+  // Badge (random unowned)
+  if(rand<75){
+    const badges=SHOP_ITEMS.filter(i=>i.type==='badge'&&i.id!=='badge_desert'&&!userPurchases.includes(i.id));
+    if(badges.length){
+      const b=badges[Math.floor(Math.random()*badges.length)];
+      return {type:'badge',value:b.id,icon:b.icon,name:b.name+'!',desc:'You got a badge!'};
+    }
+  }
+  // Coins 10-60
+  const coins=Math.floor(Math.random()*51)+10;
+  return {type:'coins',value:String(coins),icon:'🪙',name:`${coins} Coins!`,desc:`You got ${coins} coins!`};
+}
+
+async function openBox(boxId){
+  const reward=rollBoxReward();
+  // Show opening modal
+  openModal('modal-box-open');
+  document.getElementById('box-open-icon').textContent='🎁';
+  document.getElementById('box-open-title').textContent='Opening...';
+  document.getElementById('box-open-desc').textContent='';
+  document.getElementById('box-open-btn').style.display='none';
+  // Animate
+  await new Promise(r=>setTimeout(r,800));
+  document.getElementById('box-open-icon').style.animation='rewardPop .5s ease forwards';
+  document.getElementById('box-open-icon').textContent=reward.icon;
+  document.getElementById('box-open-title').textContent=reward.name;
+  document.getElementById('box-open-desc').textContent=reward.desc;
+  document.getElementById('box-open-btn').style.display='';
+  // Apply reward
+  if(reward.type==='coins'){
+    const coins=parseInt(reward.value);
+    userCoins+=coins;
+    await sb.from('users').update({coins:userCoins}).eq('id',currentUser.id);
+    currentUser.coins=userCoins;
+    updateCoinsDisplay();
+  } else if(reward.type==='badge'||reward.type==='theme'){
+    if(!userPurchases.includes(reward.value)){
+      await sb.from('purchases').insert({id:'pur_'+Date.now(),user_id:currentUser.id,item_id:reward.value});
+      userPurchases.push(reward.value);
+    }
+  } else if(reward.type==='boost'){
+    await sb.from('purchases').insert({id:'pur_'+Date.now()+'_b',user_id:currentUser.id,item_id:'boost_24h'});
+    userPurchases.push('boost_24h');
+  }
+  // Mark box as opened
+  await sb.from('boxes').update({opened:true,reward_type:reward.type,reward_value:reward.value}).eq('id',boxId);
+  renderBoxes();
+  updateBoxesBadge();
+}
+
+async function renderBoxes(){
+  const grid=document.getElementById('boxes-grid');
+  if(!grid)return;
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px"><div class="loading-spinner"></div></div>';
+  const {data:boxes}=await sb.from('boxes').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+  if(!boxes||!boxes.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)"><div style="font-size:48px;margin-bottom:12px">🎁</div><div>No boxes yet!<br>Buy one for 100 🪙</div></div>';
+    return;
+  }
+  grid.innerHTML='';
+  boxes.forEach(box=>{
+    const el=document.createElement('div');
+    el.className='box-card'+(box.opened?' opened':'');
+    if(box.opened){
+      const rewardIcons={coins:'🪙',badge:'👑',theme:'🎨',boost:'🚀'};
+      el.innerHTML=`
+        <div class="box-icon">📦</div>
+        <div style="font-weight:600;font-size:14px">Opened</div>
+        <div style="font-size:12px;color:var(--text3)">${rewardIcons[box.reward_type]||'🎁'} ${box.reward_type||'reward'}</div>`;
+    } else {
+      el.innerHTML=`
+        <div class="box-icon">🎁</div>
+        <div style="font-weight:600;font-size:14px">Mystery Box</div>
+        <div style="font-size:12px;color:var(--text3)">Click to open!</div>
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="openBox('${box.id}')">🎁 Open!</button>`;
+    }
+    grid.appendChild(el);
+  });
+}
+
+async function updateBoxesBadge(){
+  if(!currentUser)return;
+  const {data}=await sb.from('boxes').select('id').eq('user_id',currentUser.id).eq('opened',false);
+  const count=(data||[]).length;
+  const badge=document.getElementById('boxes-badge');
+  if(badge){badge.style.display=count>0?'':'none';badge.textContent=count;}
+}
 function shareProject(id,name){
   const url=`https://desertovik.github.io/Server/?project=${id}`;
   if(navigator.share){
