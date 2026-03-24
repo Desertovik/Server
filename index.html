@@ -1909,6 +1909,10 @@ async function createProject(){
 }
 
 function openEditor(){
+  if(window.innerWidth<=768){
+    toast('📱 Editor is only available on desktop','info');
+    return;
+  }
   showView('view-editor');
   document.getElementById('editor-project-name').textContent=editorState.projectName;
   const ta=document.getElementById('code-editor');
