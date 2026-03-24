@@ -1177,6 +1177,12 @@ body.theme-flash{animation:themeFlash .4s ease}
       <span class="mobile-menu-btn-icon">🚪</span><span class="mobile-menu-btn-label">Logout</span>
     </div>
   </div>
+  <!-- Accounts switcher -->
+  <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+    <div style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:12px">ACCOUNTS</div>
+    <div id="mobile-accounts-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:10px" onclick="closeMobileMenu();showView('view-auth');switchAuthTab('login')">＋ Add Account</button>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-box-open">
@@ -3692,6 +3698,25 @@ function toggleMobileMenu(){
   const sheet=document.getElementById('mobile-menu-sheet');
   const adminBtn=document.getElementById('mobile-menu-admin');
   if(adminBtn)adminBtn.style.display=currentUser?.is_admin?'':'none';
+  // Render accounts
+  const accList=document.getElementById('mobile-accounts-list');
+  if(accList){
+    accList.innerHTML='';
+    allLoggedIn.forEach(acc=>{
+      const isActive=acc.id===currentUser.id;
+      const div=document.createElement('div');
+      div.style.cssText=`display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isActive?'rgba(124,92,252,.15)':'var(--bg3)'};border:1px solid ${isActive?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);cursor:${isActive?'default':'pointer'}`;
+      div.innerHTML=`
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${acc.username[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${acc.username}</div>
+          <div style="font-size:11px;color:var(--text3)">${isActive?'✓ Active':'Tap to switch'}</div>
+        </div>
+        ${!isActive?`<button onclick="removeAccount('${acc.id}');event.stopPropagation();toggleMobileMenu()" style="background:rgba(255,91,91,.15);border:1px solid rgba(255,91,91,.3);border-radius:6px;color:var(--red);cursor:pointer;padding:4px 8px;font-size:13px">🗑</button>`:''}`;
+      if(!isActive)div.onclick=()=>{switchToAccount(acc.id);closeMobileMenu();};
+      accList.appendChild(div);
+    });
+  }
   overlay.classList.add('active');
   setTimeout(()=>sheet.classList.add('active'),10);
 }
