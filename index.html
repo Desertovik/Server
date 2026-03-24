@@ -703,7 +703,7 @@ body.theme-flash{animation:themeFlash .4s ease}
           <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
             <div class="coin-earn-item">🎨 Exclusive Theme <span>possible</span></div>
             <div class="coin-earn-item">👑 Badge <span>possible</span></div>
-            <div class="coin-earn-item">🏜️ Desert King <span style="color:var(--red)">30%</span></div>
+            <div class="coin-earn-item">🏜️ Desert King <span style="color:var(--red)">5%</span></div>
             <div class="coin-earn-item">🚀 Project Boost <span style="color:var(--accent)">0.1%</span></div>
             <div class="coin-earn-item">🪙 10-60 Coins <span>always possible</span></div>
           </div>
@@ -2835,10 +2835,10 @@ async function giveBox(userId){
 
 function rollBoxReward(){
   const rand=Math.random()*100;
-  // Desert King badge 30%
-  if(rand<30) return {type:'badge',value:'badge_desert',icon:'🏜️',name:'Desert King Badge!',desc:'You got the exclusive Desert King badge!'};
+  // Desert King badge 5%
+  if(rand<5) return {type:'badge',value:'badge_desert',icon:'🏜️',name:'Desert King Badge!',desc:'You got the exclusive Desert King badge!'};
   // Boost 0.1%
-  if(rand<30.1) return {type:'boost',value:'boost_24h',icon:'🚀',name:'Project Boost!',desc:'Your project will be pinned to top for 24 hours!'};
+  if(rand<5.1) return {type:'boost',value:'boost_24h',icon:'🚀',name:'Project Boost!',desc:'Your project will be pinned to top for 24 hours!'};
   // Theme (random unowned)
   if(rand<65){
     const themes=SHOP_ITEMS.filter(i=>i.type==='theme'&&!userPurchases.includes(i.id));
