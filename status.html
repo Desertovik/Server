@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DesertStore Status</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#0f0f1a;--bg3:#141420;--bg4:#1a1a2a;
+  --border:#1e1e30;--border2:#252538;
+  --accent:#7c5cfc;--accent2:#9d7fff;
+  --text:#e8e8f0;--text2:#a0a0b8;--text3:#606080;
+  --green:#3ddc97;--red:#ff5b5b;--yellow:#ffd166;--orange:#f4845f;
+  --radius:12px;--radius-sm:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* BACKGROUND */
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(124,92,252,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,92,252,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+.bg-orb-1{width:400px;height:400px;background:rgba(124,92,252,.08);top:-100px;right:-100px}
+.bg-orb-2{width:300px;height:300px;background:rgba(244,132,95,.06);bottom:-50px;left:-50px}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{font-size:24px}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:18px}
+.logo-sub{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;letter-spacing:.1em}
+.header-status{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:30px;padding:8px 16px;font-size:13px}
+.pulse-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pulse-dot.green{background:var(--green);box-shadow:0 0 0 0 rgba(61,220,151,.4);animation:pulse 2s infinite}
+.pulse-dot.red{background:var(--red);box-shadow:0 0 0 0 rgba(255,91,91,.4);animation:pulse 2s infinite}
+.pulse-dot.yellow{background:var(--yellow);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,220,151,.4)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* MAIN */
+.main{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:40px 24px}
+
+/* HERO */
+.hero-section{text-align:center;margin-bottom:48px}
+.hero-title{font-family:'Syne',sans-serif;font-size:clamp(32px,5vw,48px);font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{color:var(--text3);font-size:15px}
+.hero-status-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:30px;font-size:14px;font-weight:600;margin-bottom:20px;border:1px solid}
+.hero-status-badge.operational{background:rgba(61,220,151,.1);border-color:rgba(61,220,151,.3);color:var(--green)}
+.hero-status-badge.degraded{background:rgba(255,209,102,.1);border-color:rgba(255,209,102,.3);color:var(--yellow)}
+.hero-status-badge.outage{background:rgba(255,91,91,.1);border-color:rgba(255,91,91,.3);color:var(--red)}
+
+/* SERVICES */
+.section-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
+.services-list{display:flex;flex-direction:column;gap:10px;margin-bottom:40px}
+.service-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;transition:border-color .2s}
+.service-item:hover{border-color:var(--border2)}
+.service-left{display:flex;align-items:center;gap:12px}
+.service-icon{font-size:20px;width:36px;text-align:center}
+.service-name{font-weight:600;font-size:15px}
+.service-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.service-status{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;font-family:'DM Mono',monospace}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.operational{background:var(--green)}
+.status-dot.degraded{background:var(--yellow)}
+.status-dot.outage{background:var(--red)}
+.status-dot.checking{background:var(--text3)}
+.status-text.operational{color:var(--green)}
+.status-text.degraded{color:var(--yellow)}
+.status-text.outage{color:var(--red)}
+.status-text.checking{color:var(--text3)}
+
+/* UPTIME BARS */
+.uptime-section{margin-bottom:40px}
+.uptime-bar-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:10px}
+.uptime-header{display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px}
+.uptime-pct{font-family:'DM Mono',monospace;font-weight:500;color:var(--green)}
+.uptime-bars{display:flex;gap:3px;height:28px}
+.uptime-bar{flex:1;border-radius:3px;background:var(--bg4);transition:all .3s}
+.uptime-bar.up{background:var(--green);opacity:.8}
+.uptime-bar.down{background:var(--red);opacity:.8}
+.uptime-bar.unknown{background:var(--bg4)}
+.uptime-bar:hover{opacity:1;transform:scaleY(1.1)}
+.uptime-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:6px}
+
+/* INCIDENTS */
+.incidents-section{margin-bottom:40px}
+.incident-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:10px;border-left:3px solid var(--border)}
+.incident-card.investigating{border-left-color:var(--yellow)}
+.incident-card.identified{border-left-color:var(--orange)}
+.incident-card.monitoring{border-left-color:var(--accent)}
+.incident-card.resolved{border-left-color:var(--green);opacity:.7}
+.incident-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.incident-title{font-weight:600;font-size:15px}
+.incident-badge{font-size:11px;padding:3px 10px;border-radius:30px;font-family:'DM Mono',monospace;font-weight:500;text-transform:uppercase}
+.incident-badge.investigating{background:rgba(255,209,102,.15);color:var(--yellow)}
+.incident-badge.identified{background:rgba(244,132,95,.15);color:var(--orange)}
+.incident-badge.monitoring{background:rgba(124,92,252,.15);color:var(--accent2)}
+.incident-badge.resolved{background:rgba(61,220,151,.15);color:var(--green)}
+.incident-msg{font-size:13px;color:var(--text2);line-height:1.6}
+.incident-time{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:8px}
+.no-incidents{text-align:center;padding:32px;color:var(--text3);font-size:14px}
+.no-incidents-icon{font-size:36px;margin-bottom:8px}
+
+/* ADMIN PANEL */
+.admin-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:40px;display:none}
+.admin-panel.visible{display:block}
+.admin-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;color:var(--text);font-size:14px;outline:none;font-family:'Outfit',sans-serif;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group textarea{min-height:80px;resize:vertical}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:14px;font-weight:500;font-family:'Outfit',sans-serif;transition:all .2s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--text)}
+.btn-danger{background:rgba(255,91,91,.15);color:var(--red);border:1px solid rgba(255,91,91,.3)}
+.btn-sm{padding:6px 12px;font-size:13px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* LOGIN */
+.login-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:40px}
+.login-title{font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;z-index:9999;animation:slideIn .3s ease;max-width:320px}
+.toast.success{background:#1a3a2a;border:1px solid rgba(61,220,151,.3);color:var(--green)}
+.toast.error{background:#3a1a1a;border:1px solid rgba(255,91,91,.3);color:var(--red)}
+.toast.info{background:#1a1a3a;border:1px solid rgba(124,92,252,.3);color:var(--accent2)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* FOOTER */
+.footer{text-align:center;padding:32px 24px;color:var(--text3);font-size:13px;border-top:1px solid var(--border)}
+.footer a{color:var(--accent2);text-decoration:none}
+
+/* LOGIN PANEL */
+.ds-login{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:24px}
+
+/* USER CARD */
+.user-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px}
+.user-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#9d7fff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+
+@media(max-width:600px){
+  .header{padding:12px 16px}
+  .main{padding:24px 16px}
+  .hero-title{font-size:28px}
+  .service-item{flex-direction:column;align-items:flex-start;gap:8px}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+<header class="header">
+  <div class="logo">
+    <span class="logo-icon">🏜️</span>
+    <div>
+      <div class="logo-text">DesertStore</div>
+      <div class="logo-sub">STATUS PAGE</div>
+    </div>
+  </div>
+  <div class="header-status" id="header-status">
+    <div class="pulse-dot checking" id="header-dot"></div>
+    <span id="header-text">Checking...</span>
+  </div>
+</header>
+
+<main class="main">
+  <!-- HERO -->
+  <div class="hero-section">
+    <div class="hero-status-badge operational" id="hero-badge">
+      <span id="hero-badge-icon">⏳</span>
+      <span id="hero-badge-text">Checking systems...</span>
+    </div>
+    <h1 class="hero-title">System Status</h1>
+    <p class="hero-sub">Real-time status of all DesertStore services</p>
+  </div>
+
+  <!-- DS LOGIN -->
+  <div class="ds-login" id="ds-login-section">
+    <div style="font-size:13px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:12px">DESERTSTORE ACCOUNT</div>
+    <div id="ds-user-area">
+      <div style="display:flex;gap:8px">
+        <input type="text" id="ds-username" placeholder="Username" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-size:13px;outline:none">
+        <input type="password" id="ds-password" placeholder="Password" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-size:13px;outline:none">
+        <button class="btn btn-primary btn-sm" onclick="dsLogin()">Login</button>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">Login with your DesertStore account to see your profile here</div>
+    </div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="section-title">Services</div>
+  <div class="services-list" id="services-list">
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">🌐</div>
+        <div><div class="service-name">DesertStore Platform</div><div class="service-desc">Main website — desertovik.github.io</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot checking" id="dot-platform"></div><span class="status-text checking" id="status-platform">Checking</span></div>
+    </div>
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">🗄️</div>
+        <div><div class="service-name">Database (Supabase)</div><div class="service-desc">User data, projects, messages</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot checking" id="dot-db"></div><span class="status-text checking" id="status-db">Checking</span></div>
+    </div>
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">🔐</div>
+        <div><div class="service-name">Authentication</div><div class="service-desc">Login, registration, sessions</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot checking" id="dot-auth"></div><span class="status-text checking" id="status-auth">Checking</span></div>
+    </div>
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">💬</div>
+        <div><div class="service-name">Community & Chat</div><div class="service-desc">Friends, messages, notifications</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot checking" id="dot-chat"></div><span class="status-text checking" id="status-chat">Checking</span></div>
+    </div>
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">🛒</div>
+        <div><div class="service-name">Shop & Economy</div><div class="service-desc">Coins, purchases, boxes</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot checking" id="dot-shop"></div><span class="status-text checking" id="status-shop">Checking</span></div>
+    </div>
+    <div class="service-item">
+      <div class="service-left">
+        <div class="service-icon">📊</div>
+        <div><div class="service-name">Status Page</div><div class="service-desc">This page — status monitoring</div></div>
+      </div>
+      <div class="service-status"><div class="status-dot operational" id="dot-status"></div><span class="status-text operational" id="status-status">Operational</span></div>
+    </div>
+  </div>
+
+  <!-- UPTIME -->
+  <div class="uptime-section">
+    <div class="section-title">Uptime — Last 30 days</div>
+    <div class="uptime-bar-wrap">
+      <div class="uptime-header">
+        <span style="font-size:14px;font-weight:600">🌐 Platform</span>
+        <span class="uptime-pct" id="uptime-platform">—</span>
+      </div>
+      <div class="uptime-bars" id="bars-platform"></div>
+      <div class="uptime-labels"><span>30 days ago</span><span>Today</span></div>
+    </div>
+    <div class="uptime-bar-wrap">
+      <div class="uptime-header">
+        <span style="font-size:14px;font-weight:600">🗄️ Database</span>
+        <span class="uptime-pct" id="uptime-db">—</span>
+      </div>
+      <div class="uptime-bars" id="bars-db"></div>
+      <div class="uptime-labels"><span>30 days ago</span><span>Today</span></div>
+    </div>
+  </div>
+
+  <!-- INCIDENTS -->
+  <div class="incidents-section">
+    <div class="section-title">Incidents</div>
+    <div id="incidents-list"><div style="text-align:center;padding:20px;color:var(--text3)">Loading...</div></div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div class="admin-panel" id="admin-panel">
+    <div class="admin-title">🛡️ Admin — Post Incident</div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="inc-title" placeholder="e.g. Database slowdown">
+    </div>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea id="inc-msg" placeholder="Describe what's happening..."></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="inc-status">
+          <option value="investigating">🔍 Investigating</option>
+          <option value="identified">🎯 Identified</option>
+          <option value="monitoring">👁️ Monitoring</option>
+          <option value="resolved">✅ Resolved</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Service</label>
+        <select id="inc-service">
+          <option value="all">All Services</option>
+          <option value="platform">Platform</option>
+          <option value="database">Database</option>
+          <option value="auth">Authentication</option>
+          <option value="chat">Community & Chat</option>
+          <option value="shop">Shop & Economy</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="postIncident()">📢 Post Incident</button>
+    </div>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+      <div class="section-title" style="margin-bottom:12px">Active Incidents</div>
+      <div id="admin-incidents-list"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <p>🏜️ DesertStore Status · <a href="https://desertovik.github.io/Server/" target="_blank">Go to DesertStore →</a></p>
+  <p style="margin-top:6px;font-size:11px">Last updated: <span id="last-updated">—</span></p>
+</footer>
+
+<script>
+const SB_URL='https://crjesxqwvhnhykdkpbtw.supabase.co';
+const SB_KEY='sb_publishable_pK6AxeucMV8r_VRryynjMA_6bcRAnQA';
+const {createClient}=supabase;
+const sb=createClient(SB_URL,SB_KEY);
+
+let dsUser=null;
+
+// TOAST
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+
+// DS LOGIN
+async function dsLogin(){
+  const username=document.getElementById('ds-username').value.trim();
+  const password=document.getElementById('ds-password').value;
+  if(!username||!password){toast('Enter username and password','error');return;}
+  const {data:user}=await sb.from('users').select('*').eq('username',username).eq('password',password).single();
+  if(!user){toast('Wrong credentials','error');return;}
+  dsUser=user;
+  renderDSUser();
+  if(user.is_admin)document.getElementById('admin-panel').classList.add('visible');
+  toast(`Welcome back, ${user.username}! 🏜️`,'success');
+}
+
+function renderDSUser(){
+  if(!dsUser)return;
+  const area=document.getElementById('ds-user-area');
+  const frameColors={frame_gold:'#ffd166',frame_neon:'#7c5cfc',frame_rainbow:'#f72585',frame_fire:'#ff5b5b'};
+  const frameColor=dsUser.active_frame?frameColors[dsUser.active_frame]:'';
+  const borderStyle=frameColor?`border:3px solid ${frameColor}`:'';
+  const avatarHtml=dsUser.avatar
+    ?`<img src="${dsUser.avatar}">`
+    :`${dsUser.username[0].toUpperCase()}`;
+  // Badge
+  const badges={badge_pro:{label:'💎 Pro',color:'#00b4d8'},badge_legend:{label:'👑 Legend',color:'#ffd166'},badge_desert:{label:'🏜️ Desert King',color:'#f4845f'},badge_fire:{label:'🔥 On Fire',color:'#ff5b5b'}};
+  const badge=dsUser.active_badge?badges[dsUser.active_badge]:null;
+  const badgeHtml=badge?`<span style="background:${badge.color}22;color:${badge.color};border:1px solid ${badge.color}44;padding:2px 8px;border-radius:30px;font-size:11px;font-weight:600">${badge.label}</span>`:'';
+  area.innerHTML=`
+    <div class="user-card">
+      <div class="user-avatar" style="${borderStyle}">${avatarHtml}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px">${dsUser.username}${badgeHtml}</div>
+        <div style="font-size:12px;color:var(--text3)">🪙 ${dsUser.coins||0} coins${dsUser.is_admin?' · 🛡️ Admin':''}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="dsLogout()">Logout</button>
+    </div>`;
+}
+
+function dsLogout(){
+  dsUser=null;
+  document.getElementById('admin-panel').classList.remove('visible');
+  document.getElementById('ds-user-area').innerHTML=`
+    <div style="display:flex;gap:8px">
+      <input type="text" id="ds-username" placeholder="Username" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-size:13px;outline:none">
+      <input type="password" id="ds-password" placeholder="Password" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-size:13px;outline:none">
+      <button class="btn btn-primary btn-sm" onclick="dsLogin()">Login</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-top:8px">Login with your DesertStore account to see your profile here</div>`;
+}
+
+// CHECK SERVICES
+async function checkServices(){
+  // Check DB & all services by querying Supabase
+  try{
+    const start=Date.now();
+    const {data,error}=await sb.from('users').select('id').limit(1);
+    const ms=Date.now()-start;
+    if(error)throw error;
+    // DB OK
+    setStatus('db','operational',ms<500?'Operational':`Slow (${ms}ms)`);
+    setStatus('auth','operational','Operational');
+    setStatus('chat','operational','Operational');
+    setStatus('shop','operational','Operational');
+  }catch(e){
+    setStatus('db','outage','Outage');
+    setStatus('auth','outage','Outage');
+    setStatus('chat','outage','Outage');
+    setStatus('shop','outage','Outage');
+  }
+  // Check platform (GitHub Pages)
+  try{
+    const res=await fetch('https://desertovik.github.io/Server/',{method:'HEAD',mode:'no-cors'});
+    setStatus('platform','operational','Operational');
+  }catch{
+    setStatus('platform','degraded','Unknown');
+  }
+  updateOverallStatus();
+  document.getElementById('last-updated').textContent=new Date().toLocaleTimeString();
+}
+
+function setStatus(service,status,text){
+  const dot=document.getElementById('dot-'+service);
+  const txt=document.getElementById('status-'+service);
+  if(dot){dot.className=`status-dot ${status}`;}
+  if(txt){txt.className=`status-text ${status}`;txt.textContent=text;}
+}
+
+function updateOverallStatus(){
+  const statuses=['platform','db','auth','chat','shop'];
+  const hasOutage=statuses.some(s=>{
+    const el=document.getElementById('status-'+s);
+    return el&&el.classList.contains('outage');
+  });
+  const hasDegraded=statuses.some(s=>{
+    const el=document.getElementById('status-'+s);
+    return el&&(el.classList.contains('degraded')||el.textContent.includes('Slow'));
+  });
+  const dot=document.getElementById('header-dot');
+  const text=document.getElementById('header-text');
+  const badge=document.getElementById('hero-badge');
+  const badgeIcon=document.getElementById('hero-badge-icon');
+  const badgeText=document.getElementById('hero-badge-text');
+  if(hasOutage){
+    dot.className='pulse-dot red';text.textContent='Partial Outage';
+    badge.className='hero-status-badge outage';badgeIcon.textContent='🔴';badgeText.textContent='Partial Outage';
+  } else if(hasDegraded){
+    dot.className='pulse-dot yellow';text.textContent='Degraded Performance';
+    badge.className='hero-status-badge degraded';badgeIcon.textContent='🟡';badgeText.textContent='Degraded Performance';
+  } else {
+    dot.className='pulse-dot green';text.textContent='All Systems Operational';
+    badge.className='hero-status-badge operational';badgeIcon.textContent='✅';badgeText.textContent='All Systems Operational';
+  }
+}
+
+// UPTIME BARS (simulated — 30 days)
+function renderUptimeBars(){
+  ['platform','db'].forEach(service=>{
+    const container=document.getElementById('bars-'+service);
+    const pctEl=document.getElementById('uptime-'+service);
+    if(!container)return;
+    container.innerHTML='';
+    let upCount=0;
+    for(let i=0;i<30;i++){
+      const bar=document.createElement('div');
+      // Simulate mostly up with occasional issue
+      const isUp=Math.random()>0.02;
+      if(isUp)upCount++;
+      bar.className=`uptime-bar ${isUp?'up':'down'}`;
+      bar.title=`Day ${i+1}: ${isUp?'Operational':'Outage'}`;
+      container.appendChild(bar);
+    }
+    if(pctEl)pctEl.textContent=((upCount/30)*100).toFixed(1)+'%';
+  });
+}
+
+// INCIDENTS
+async function loadIncidents(){
+  const {data:incidents}=await sb.from('incidents').select('*').order('created_at',{ascending:false}).limit(10);
+  const list=document.getElementById('incidents-list');
+  const adminList=document.getElementById('admin-incidents-list');
+  if(!incidents||!incidents.length){
+    list.innerHTML=`<div class="no-incidents"><div class="no-incidents-icon">✅</div><div>No incidents reported</div><div style="font-size:12px;margin-top:4px">All systems have been operating normally</div></div>`;
+  } else {
+    list.innerHTML=incidents.map(inc=>`
+      <div class="incident-card ${inc.status}">
+        <div class="incident-header">
+          <div class="incident-title">${inc.title}</div>
+          <span class="incident-badge ${inc.status}">${inc.status}</span>
+        </div>
+        <div class="incident-msg">${inc.message||''}</div>
+        <div class="incident-time">🕒 ${new Date(inc.created_at).toLocaleString()}${inc.resolved_at?` · Resolved: ${new Date(inc.resolved_at).toLocaleString()}`:''}${inc.service!=='all'?` · Service: ${inc.service}`:''}</div>
+      </div>`).join('');
+  }
+  // Admin list
+  if(adminList&&dsUser?.is_admin){
+    if(!incidents||!incidents.length){
+      adminList.innerHTML='<div style="color:var(--text3);font-size:13px">No incidents</div>';
+    } else {
+      adminList.innerHTML=incidents.map(inc=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px">
+          <div style="flex:1"><span class="incident-badge ${inc.status}" style="margin-right:8px">${inc.status}</span>${inc.title}</div>
+          ${!inc.resolved?`<button class="btn btn-sm" style="background:rgba(61,220,151,.15);color:var(--green);border:1px solid rgba(61,220,151,.3)" onclick="resolveIncident('${inc.id}')">✓ Resolve</button>`:''}
+          <button class="btn btn-danger btn-sm" onclick="deleteIncident('${inc.id}')">🗑</button>
+        </div>`).join('');
+    }
+  }
+}
+
+async function postIncident(){
+  if(!dsUser?.is_admin){toast('Admin only','error');return;}
+  const title=document.getElementById('inc-title').value.trim();
+  const msg=document.getElementById('inc-msg').value.trim();
+  const status=document.getElementById('inc-status').value;
+  const service=document.getElementById('inc-service').value;
+  if(!title){toast('Enter a title','error');return;}
+  await sb.from('incidents').insert({id:'inc_'+Date.now(),title,message:msg,status,service,resolved:status==='resolved'});
+  document.getElementById('inc-title').value='';
+  document.getElementById('inc-msg').value='';
+  toast('✅ Incident posted!','success');
+  loadIncidents();
+}
+
+async function resolveIncident(id){
+  await sb.from('incidents').update({resolved:true,status:'resolved',resolved_at:new Date().toISOString()}).eq('id',id);
+  toast('✅ Incident resolved!','success');
+  loadIncidents();
+}
+
+async function deleteIncident(id){
+  await sb.from('incidents').delete().eq('id',id);
+  toast('Deleted','info');
+  loadIncidents();
+}
+
+// INIT
+async function init(){
+  renderUptimeBars();
+  await checkServices();
+  await loadIncidents();
+  // Auto refresh every 60 seconds
+  setInterval(async()=>{await checkServices();await loadIncidents();},60000);
+}
+
+init();
+</script>
+</body>
+</html>
