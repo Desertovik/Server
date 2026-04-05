@@ -1040,6 +1040,7 @@ body.theme-flash{animation:themeFlash .4s ease}
       <input type="file" id="import-file-input" style="display:none" onchange="importFile(event)">
       <button class="btn btn-secondary btn-sm" id="btn-editor-download" onclick="downloadFromEditor()">⬇ Download</button>
       <button class="btn btn-primary btn-sm" onclick="openUploadModal()">↑ Upload Project</button>
+      <button onclick="toggleAI()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(124,92,252,.4);transition:all .2s" title="AI Assistant">🤖</button>
     </div>
   </div>
   <div class="editor-body">
@@ -1060,6 +1061,29 @@ body.theme-flash{animation:themeFlash .4s ease}
         <span id="status-chars">Chars: 0</span>
         <span id="status-cursor">Ln 1, Col 1</span>
         <span style="margin-left:auto;color:var(--accent)">Python 3.x</span>
+      </div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div id="ai-panel" style="width:0;overflow:hidden;transition:width .3s ease;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;height:100%;flex-shrink:0">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">🤖</span>
+          <span style="font-weight:600;font-size:14px">AI Assistant</span>
+          <span style="font-size:10px;background:rgba(61,220,151,.2);color:var(--green);padding:2px 6px;border-radius:30px;font-family:'DM Mono',monospace">Free ∞</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAI()" style="padding:4px 8px">✕</button>
+      </div>
+      <div style="padding:10px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0">
+        <button class="btn btn-sm" style="font-size:11px;background:var(--bg3);border:1px solid var(--border)" onclick="aiQuickAction('explain')">💡 Explain</button>
+        <button class="btn btn-sm" style="font-size:11px;background:var(--bg3);border:1px solid var(--border)" onclick="aiQuickAction('fix')">🔧 Fix bugs</button>
+        <button class="btn btn-sm" style="font-size:11px;background:var(--bg3);border:1px solid var(--border)" onclick="aiQuickAction('improve')">✨ Improve</button>
+        <button class="btn btn-sm" style="font-size:11px;background:var(--bg3);border:1px solid var(--border)" onclick="aiQuickAction('comment')">📝 Comments</button>
+      </div>
+      <div id="ai-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="padding:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+        <textarea id="ai-input" placeholder="Ask AI anything about your code..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text);font-size:13px;outline:none;resize:none;height:60px;font-family:'Outfit',sans-serif" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage()}"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="sendAIMessage()" style="align-self:flex-end;width:36px;height:36px;padding:0;border-radius:50%;justify-content:center">➤</button>
       </div>
     </div>
 
@@ -1908,6 +1932,101 @@ async function createProject(){
   closeModal('modal-new-project');editorState={projectId:id,files,activeFile:'main.py',iconData:newIconData,projectName:name,projectDesc:desc};openEditor();
 }
 
+// AI ASSISTANT (Pollinations - Free, no key needed)
+let aiOpen=false;
+let aiHistory=[];
+
+function toggleAI(){
+  aiOpen=!aiOpen;
+  const panel=document.getElementById('ai-panel');
+  if(panel){
+    panel.style.width=aiOpen?'320px':'0';
+    panel.style.minWidth=aiOpen?'320px':'0';
+    panel.style.overflow=aiOpen?'visible':'hidden';
+  }
+  if(aiOpen&&document.getElementById('ai-messages').children.length===0){
+    addAIMessage('ai','👋 Hi! I\'m your AI assistant — free & unlimited!\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Fix bugs\n• ✨ Improve code\n• 📝 Add comments\n\nJust ask!');
+  }
+  if(aiOpen)setTimeout(()=>document.getElementById('ai-input')?.focus(),350);
+}
+
+function formatAIMessage(text){
+  return text.replace(/```(\w*)\n?([\s\S]*?)```/g,(match,lang,code)=>{
+    const id='cb_'+Math.random().toString(36).slice(2);
+    const langLabel=lang||'python';
+    const lines=code.trim().split('\n');
+    const isLong=lines.length>20;
+    const shortCode=isLong?lines.slice(0,20).join('\n'):code.trim();
+    return `<div style="background:#0d0d14;border:1px solid var(--border2);border-radius:8px;margin:6px 0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#161620;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel} · ${lines.length} lines</span>
+        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px">📋 Copy</button>
+      </div>
+      <pre id="${id}" data-full="${encodeURIComponent(code.trim())}" data-expanded="false" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(shortCode)}${isLong?'\n...':''}</pre>
+      ${isLong?`<div style="border-top:1px solid var(--border);padding:6px 12px"><button id="toggle_${id}" onclick="toggleCodeBlock('${id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-family:'DM Mono',monospace;padding:0">▼ See all (${lines.length} lines)</button></div>`:''}
+    </div>`;
+  }).replace(/`([^`]+)`/g,'<code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--accent2)">$1</code>').replace(/\n/g,'<br>');
+}
+
+function toggleCodeBlock(id){
+  const pre=document.getElementById(id);const btn=document.getElementById('toggle_'+id);
+  if(!pre||!btn)return;
+  const expanded=pre.dataset.expanded==='true';
+  if(expanded){const lines=decodeURIComponent(pre.dataset.full).split('\n');pre.textContent=lines.slice(0,20).join('\n')+'\n...';pre.dataset.expanded='false';btn.textContent=`▼ See all (${lines.length} lines)`;}
+  else{pre.textContent=decodeURIComponent(pre.dataset.full);pre.dataset.expanded='true';btn.textContent='▲ Collapse';}
+}
+
+function copyCode(id){
+  const el=document.getElementById(id);if(!el)return;
+  const code=el.innerText||el.textContent;
+  navigator.clipboard.writeText(code).then(()=>toast('✅ Code copied!','success')).catch(()=>{const ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('✅ Code copied!','success');});
+}
+
+function addAIMessage(role,text){
+  const container=document.getElementById('ai-messages');if(!container)return;
+  const div=document.createElement('div');div.style.cssText=`display:flex;flex-direction:column;gap:4px;align-items:${role==='user'?'flex-end':'flex-start'}`;
+  const bubble=document.createElement('div');
+  if(role==='user'){bubble.style.cssText='max-width:90%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--accent);color:#fff;border-bottom-right-radius:4px';bubble.textContent=text;}
+  else{bubble.style.cssText='max-width:95%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--bg3);color:var(--text);border-bottom-left-radius:4px;border:1px solid var(--border)';bubble.innerHTML=formatAIMessage(text);}
+  div.appendChild(bubble);container.appendChild(div);container.scrollTop=container.scrollHeight;
+}
+
+function addAILoadingMessage(){
+  const container=document.getElementById('ai-messages');if(!container)return null;
+  const div=document.createElement('div');div.id='ai-loading-msg';div.style.cssText='display:flex;align-items:flex-start';
+  div.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;border-bottom-left-radius:4px;padding:10px 14px;font-size:13px;color:var(--text3)"><span class="loading-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></span>Thinking...</div>`;
+  container.appendChild(div);container.scrollTop=container.scrollHeight;return div;
+}
+
+async function sendAIMessage(){
+  const input=document.getElementById('ai-input');const text=input?.value?.trim();if(!text)return;input.value='';
+  addAIMessage('user',text);const code=document.getElementById('code-editor')?.value||'';const fileName=editorState.activeFile||'main.py';await callAI(text,code,fileName);
+}
+
+async function aiQuickAction(action){
+  const code=document.getElementById('code-editor')?.value||'';const fileName=editorState.activeFile||'main.py';
+  if(!code.trim()){addAIMessage('ai','⚠️ No code to analyze!');return;}
+  const prompts={explain:`Explain this ${fileName} code`,fix:`Fix bugs in this ${fileName} code`,improve:`Improve this ${fileName} code`,comment:`Add comments to this ${fileName} code`};
+  addAIMessage('user',prompts[action]);await callAI(prompts[action],code,fileName);
+}
+
+async function callAI(userMessage,code,fileName){
+  const loading=addAILoadingMessage();
+  try{
+    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Current file: ${fileName}\nCode:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise and helpful.`;
+    aiHistory.push({role:'user',content:userMessage});
+    if(aiHistory.length>10)aiHistory=aiHistory.slice(-10);
+    const res=await fetch('https://text.pollinations.ai/openai',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'openai',messages:[{role:'system',content:systemPrompt},...aiHistory],max_tokens:2000,private:true})
+    });
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'Sorry, something went wrong.';
+    loading?.remove();addAIMessage('ai',reply);aiHistory.push({role:'assistant',content:reply});
+  }catch(e){loading?.remove();addAIMessage('ai','❌ Error connecting to AI. Please try again.');console.error(e);}
+}
+
 function openEditor(){
   if(window.innerWidth<=768){
     toast('📱 Editor is only available on desktop','info');
@@ -1986,167 +2105,6 @@ function selectFile(fname){
   renderFileTree();updateEditorStatus();updateEditorUI();hideAutocomplete();
 }
 
-// AI ASSISTANT
-let aiOpen=true;
-let aiHistory=[];
-
-function toggleAI(){
-  aiOpen=!aiOpen;
-  const panel=document.getElementById('ai-panel');
-  const btn=document.getElementById('ai-toggle-btn');
-  if(panel){
-    panel.style.width=aiOpen?'320px':'0';
-    panel.style.minWidth=aiOpen?'320px':'0';
-    panel.style.overflow=aiOpen?'visible':'hidden';
-  }
-  if(btn)btn.style.transform=aiOpen?'rotate(20deg) scale(1.1)':'scale(1)';
-  if(aiOpen&&document.getElementById('ai-messages').children.length===0){
-    addAIMessage('ai','👋 Hi! I\'m your AI coding assistant powered by Gemini 2.0 Flash.\n\nI can help you:\n• 💡 Explain your code\n• 🔧 Find and fix bugs\n• ✨ Improve and optimize\n• 📝 Add comments\n• 💬 Answer Python questions\n\nJust ask me anything or use the quick buttons above!');
-  }
-  if(aiOpen)setTimeout(()=>document.getElementById('ai-input')?.focus(),350);
-}
-
-function formatAIMessage(text){
-  return text.replace(/```(\w*)\n?([\s\S]*?)```/g,(match,lang,code)=>{
-    const id='cb_'+Math.random().toString(36).slice(2);
-    const langLabel=lang||'python';
-    const lines=code.trim().split('\n');
-    const isLong=lines.length>20;
-    const shortCode=isLong?lines.slice(0,20).join('\n'):code.trim();
-    return `<div style="background:#0d0d14;border:1px solid var(--border2);border-radius:8px;margin:6px 0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#161620;border-bottom:1px solid var(--border)">
-        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel} · ${lines.length} lines</span>
-        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">📋 Copy</button>
-      </div>
-      <pre id="${id}" data-full="${encodeURIComponent(code.trim())}" data-expanded="false" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(shortCode)}${isLong?'\n...':''}</pre>
-      ${isLong?`<div style="border-top:1px solid var(--border);padding:6px 12px">
-        <button id="toggle_${id}" onclick="toggleCodeBlock('${id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-family:'DM Mono',monospace;padding:0">▼ See all (${lines.length} lines)</button>
-      </div>`:''}
-    </div>`;
-  }).replace(/`([^`]+)`/g,'<code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--accent2)">$1</code>')
-    .replace(/\n/g,'<br>');
-}
-
-function toggleCodeBlock(id){
-  const pre=document.getElementById(id);
-  const btn=document.getElementById('toggle_'+id);
-  if(!pre||!btn)return;
-  const expanded=pre.dataset.expanded==='true';
-  if(expanded){
-    const lines=decodeURIComponent(pre.dataset.full).split('\n');
-    pre.textContent=lines.slice(0,20).join('\n')+'\n...';
-    pre.dataset.expanded='false';
-    btn.textContent=`▼ See all (${lines.length} lines)`;
-  } else {
-    pre.textContent=decodeURIComponent(pre.dataset.full);
-    pre.dataset.expanded='true';
-    btn.textContent='▲ Collapse';
-  }
-}
-
-function copyCode(id){
-  const el=document.getElementById(id);
-  if(!el)return;
-  const code=el.innerText||el.textContent;
-  navigator.clipboard.writeText(code).then(()=>{
-    toast('✅ Code copied!','success');
-  }).catch(()=>{
-    // Fallback
-    const ta=document.createElement('textarea');
-    ta.value=el.innerText||el.textContent;
-    document.body.appendChild(ta);ta.select();
-    document.execCommand('copy');ta.remove();
-    toast('✅ Code copied!','success');
-  });
-}
-
-function addAIMessage(role, text){
-  const container=document.getElementById('ai-messages');
-  if(!container)return;
-  const div=document.createElement('div');
-  div.style.cssText=`display:flex;flex-direction:column;gap:4px;align-items:${role==='user'?'flex-end':'flex-start'}`;
-  const bubble=document.createElement('div');
-  if(role==='user'){
-    bubble.style.cssText='max-width:90%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--accent);color:#fff;border-bottom-right-radius:4px';
-    bubble.textContent=text;
-  } else {
-    bubble.style.cssText='max-width:95%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word;background:var(--bg3);color:var(--text);border-bottom-left-radius:4px;border:1px solid var(--border)';
-    bubble.innerHTML=formatAIMessage(text);
-  }
-  div.appendChild(bubble);
-  container.appendChild(div);
-  container.scrollTop=container.scrollHeight;
-}
-
-function addAILoadingMessage(){
-  const container=document.getElementById('ai-messages');
-  if(!container)return null;
-  const div=document.createElement('div');
-  div.id='ai-loading-msg';
-  div.style.cssText='display:flex;align-items:flex-start;gap:8px';
-  div.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;border-bottom-left-radius:4px;padding:10px 14px;font-size:13px;color:var(--text3)">
-    <span class="loading-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></span>Thinking...
-  </div>`;
-  container.appendChild(div);
-  container.scrollTop=container.scrollHeight;
-  return div;
-}
-
-async function sendAIMessage(){
-  const input=document.getElementById('ai-input');
-  const text=input?.value?.trim();
-  if(!text)return;
-  input.value='';
-  addAIMessage('user',text);
-  const code=document.getElementById('code-editor')?.value||'';
-  const fileName=editorState.activeFile||'main.py';
-  await callAI(text,code,fileName);
-}
-
-async function aiQuickAction(action){
-  const code=document.getElementById('code-editor')?.value||'';
-  const fileName=editorState.activeFile||'main.py';
-  if(!code.trim()){addAIMessage('ai','⚠️ No code to analyze! Write some code first.');return;}
-  const prompts={
-    explain:`Please explain what this ${fileName} code does in simple terms`,
-    fix:`Find and fix any bugs or errors in this ${fileName} code`,
-    improve:`Improve and optimize this ${fileName} code`,
-    comment:`Add helpful comments to this ${fileName} code`
-  };
-  const msg=prompts[action];
-  addAIMessage('user',msg);
-  await callAI(msg,code,fileName);
-}
-
-async function callAI(userMessage,code,fileName){
-  const loading=addAILoadingMessage();
-  try{
-    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Help users with their Python code. Current file: ${fileName}\nCurrent code:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise. Format code properly.`;
-
-    aiHistory.push({role:'user',parts:[{text:userMessage}]});
-    if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
-
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=AIzaSyC5gllbYWZyefnwtPxtWobBo3Wjkw4TYjk`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        system_instruction:{parts:[{text:systemPrompt}]},
-        contents:aiHistory,
-        generationConfig:{maxOutputTokens:8192}
-      })
-    });
-    const data=await res.json();
-    if(data.error){console.error('Gemini error:',data.error);loading?.remove();addAIMessage('ai',`❌ ${data.error.message}`);return;}
-    const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'Sorry, something went wrong.';
-    loading?.remove();
-    addAIMessage('ai',reply);
-    aiHistory.push({role:'model',parts:[{text:reply}]});
-  }catch(e){
-    loading?.remove();
-    addAIMessage('ai','❌ Error connecting to AI. Please try again.');
-    console.error(e);
-  }
-}
 const PY_KEYWORDS=['False','None','True','and','as','assert','async','await','break','class','continue','def','del','elif','else','except','finally','for','from','global','if','import','in','is','lambda','nonlocal','not','or','pass','raise','return','try','while','with','yield'];
 const PY_BUILTINS=['print','input','len','range','int','str','float','list','dict','tuple','set','bool','type','isinstance','hasattr','getattr','setattr','open','enumerate','zip','map','filter','sorted','reversed','sum','min','max','abs','round','format','repr','id','hash','dir','vars','super','object','Exception','ValueError','TypeError','KeyError','IndexError'];
 const PY_SNIPPETS=[
@@ -2415,9 +2373,18 @@ async function renderAdmin(){
         </div>
         <div style="font-size:12px;color:var(--text3)">${u.email} · ${up} project(s)${u.last_seen?` · Last seen: ${new Date(u.last_seen).toLocaleTimeString()}`:''}
         </div>
-      </div>`;
+      </div>
+      <button class="btn btn-sm" style="font-size:11px;background:rgba(124,92,252,.15);color:var(--accent);border:1px solid rgba(124,92,252,.3);flex-shrink:0" onclick="toggleAdmin('${u.id}','${u.username}')">🛡️ Make Admin</button>`;
     usersList.appendChild(el);
   });
+}
+
+async function toggleAdmin(id, username){
+  if(!confirm(`Make ${username} an admin?`))return;
+  await sb.from('users').update({is_admin:true}).eq('id',id);
+  await sb.from('notifications').insert({id:'n_'+Date.now(),user_id:id,message:`🛡️ You have been granted Admin rights on DesertStore!`,read:false,type:'system'});
+  toast(`✅ ${username} is now an admin!`,'success');
+  renderAdmin();
 }
 
 async function adminTogglePin(id,pin){await sb.from('projects').update({pinned:pin}).eq('id',id);toast(pin?'📌 Project pinned!':'📌 Unpinned','info');renderAdmin();renderStore();}
