@@ -1957,12 +1957,18 @@ function formatAIMessage(text){
     const lines=code.trim().split('\n');
     const isLong=lines.length>20;
     const shortCode=isLong?lines.slice(0,20).join('\n'):code.trim();
+    const encodedCode=encodeURIComponent(code.trim());
+    // Detect filename from lang or use current file
+    const isPython=!lang||lang==='python'||lang==='py';
     return `<div style="background:#0d0d14;border:1px solid var(--border2);border-radius:8px;margin:6px 0;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#161620;border-bottom:1px solid var(--border)">
         <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${langLabel} · ${lines.length} lines</span>
-        <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px">📋 Copy</button>
+        <div style="display:flex;gap:6px">
+          ${isPython?`<button onclick="aiApplyCode('${id}','${encodedCode}')" style="background:rgba(61,220,151,.15);border:1px solid rgba(61,220,151,.3);border-radius:4px;color:var(--green);cursor:pointer;padding:3px 8px;font-size:11px">✓ Apply</button>`:''}
+          <button onclick="copyCode('${id}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;padding:3px 8px;font-size:11px">📋 Copy</button>
+        </div>
       </div>
-      <pre id="${id}" data-full="${encodeURIComponent(code.trim())}" data-expanded="false" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(shortCode)}${isLong?'\n...':''}</pre>
+      <pre id="${id}" data-full="${encodedCode}" data-expanded="false" style="margin:0;padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:#e8e8f0;overflow-x:auto;line-height:1.6;white-space:pre">${escHtml(shortCode)}${isLong?'\n...':''}</pre>
       ${isLong?`<div style="border-top:1px solid var(--border);padding:6px 12px"><button id="toggle_${id}" onclick="toggleCodeBlock('${id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-family:'DM Mono',monospace;padding:0">▼ See all (${lines.length} lines)</button></div>`:''}
     </div>`;
   }).replace(/`([^`]+)`/g,'<code style="background:var(--bg4);padding:2px 6px;border-radius:4px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--accent2)">$1</code>').replace(/\n/g,'<br>');
@@ -2010,10 +2016,40 @@ async function aiQuickAction(action){
   addAIMessage('user',prompts[action]);await callAI(prompts[action],code,fileName);
 }
 
+function aiApplyCode(id, encodedCode){
+  const code=decodeURIComponent(encodedCode);
+  // Apply to current active file
+  const ta=document.getElementById('code-editor');
+  if(!ta){toast('Open a file first!','error');return;}
+  // Show mini modal to choose: replace current file or create new
+  const activeFile=editorState.activeFile||'main.py';
+  const choice=confirm(`Apply code to "${activeFile}"?\n\nOK = Replace current file\nCancel = Create new file`);
+  if(choice){
+    // Replace current file
+    ta.value=code;
+    editorState.files[activeFile]=code;
+    ta.dispatchEvent(new Event('input'));
+    autoSave();
+    toast(`✅ Applied to ${activeFile}!`,'success');
+  } else {
+    // Create new file
+    const fileName=prompt('New file name:','ai_generated.py');
+    if(!fileName)return;
+    const name=fileName.endsWith('.py')?fileName:fileName+'.py';
+    editorState.files[name]=code;
+    editorState.activeFile=name;
+    renderFileTree();
+    ta.value=code;
+    ta.dispatchEvent(new Event('input'));
+    autoSave();
+    toast(`✅ Created ${name}!`,'success');
+  }
+}
+
 async function callAI(userMessage,code,fileName){
   const loading=addAILoadingMessage();
   try{
-    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Current file: ${fileName}\nCode:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise and helpful.`;
+    const systemPrompt=`You are an expert Python coding assistant inside DesertStore code editor. Current file: ${fileName}\nCode:\n\`\`\`python\n${code.slice(0,2000)}\n\`\`\`\nBe concise and helpful. When providing code, always wrap it in \`\`\`python code blocks so the user can apply it directly to the editor with one click.`;
     aiHistory.push({role:'user',content:userMessage});
     if(aiHistory.length>10)aiHistory=aiHistory.slice(-10);
     const res=await fetch('https://text.pollinations.ai/'+encodeURIComponent(systemPrompt+'\n\nUser: '+userMessage),{
